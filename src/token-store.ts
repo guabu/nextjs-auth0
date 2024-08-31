@@ -14,14 +14,34 @@ export interface TokenSet extends jose.JWTPayload {
 interface TokenStoreOptions {
   appBaseUrl: string
   secret: string
+
+  rolling?: boolean // defaults to true
+  absoluteDuration?: number // defaults to 30 days
+  inactivityDuration?: number // defaults to 7 days
 }
 
 export class TokenStore {
+  private rolling: boolean
+  private absoluteDuration: number
+  private inactivityDuration: number
+
   private secret: string
   private cookieConfig: cookies.CookieOptions
 
-  constructor({ appBaseUrl, secret }: TokenStoreOptions) {
+  constructor({
+    appBaseUrl,
+    secret,
+
+    rolling = true,
+    absoluteDuration = 60 * 60 * 24 * 30, // 30 days in seconds
+    inactivityDuration = 60 * 60 * 24 * 7, // 7 days in seconds
+  }: TokenStoreOptions) {
+    this.rolling = rolling
+    this.absoluteDuration = absoluteDuration
+    this.inactivityDuration = inactivityDuration
+
     this.secret = secret
+
     const { hostname } = new URL(appBaseUrl)
     this.cookieConfig = {
       httpOnly: true,
@@ -29,14 +49,18 @@ export class TokenStore {
       secure: process.env.NODE_ENV === "production",
       domain: hostname,
       path: "/",
-      maxAge: 30 * 60 * 24 * 30, // 30 days in seconds — the absolute maximum age for a session
     }
   }
 
   async save(res: NextResponse, tokenSet: TokenSet) {
     const jwe = await cookies.encrypt(tokenSet, this.secret)
+    const iat = tokenSet.iat ?? this.epoch() // a new session will not have an iat, but when we're touching a session, it will already have an iat
+    const maxAge = this.calculateMaxAge(iat)
 
-    res.cookies.set(TOKEN_SET_COOKIE_NAME, jwe.toString(), this.cookieConfig)
+    res.cookies.set(TOKEN_SET_COOKIE_NAME, jwe.toString(), {
+      ...this.cookieConfig,
+      maxAge,
+    })
   }
 
   async get(req: NextRequest) {
@@ -51,5 +75,36 @@ export class TokenStore {
 
   async delete(res: NextResponse) {
     res.cookies.delete(TOKEN_SET_COOKIE_NAME)
+  }
+
+  async touch(req: NextRequest) {
+    const session = await this.get(req)
+    const res = new NextResponse()
+
+    if (session) {
+      await this.save(res, session)
+    }
+
+    return res
+  }
+
+  private epoch() {
+    return (Date.now() / 1000) | 0
+  }
+
+  /**
+   * calculateMaxAge calculates the max age of the session based on the iat and the rolling and absolute durations.
+   */
+  private calculateMaxAge(iat: number) {
+    if (!this.rolling) {
+      return iat + this.absoluteDuration
+    }
+
+    const uat = this.epoch() // updated at
+    const expiresAt = Math.min(
+      uat + this.inactivityDuration,
+      iat + this.absoluteDuration
+    )
+    return expiresAt - this.epoch()
   }
 }

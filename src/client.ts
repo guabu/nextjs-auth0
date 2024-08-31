@@ -1,4 +1,7 @@
 import { AuthHandler, BeforeSessionCreatedHook } from "./auth-handler"
+import { SessionStore } from "./session-store"
+import { TokenStore } from "./token-store"
+import { TransactionStore } from "./transaction-store"
 
 interface Auth0ClientOptions {
   // authorization server configuration
@@ -18,6 +21,9 @@ interface Auth0ClientOptions {
 }
 
 export class Auth0Client {
+  private transactionStore: TransactionStore
+  private sessionStore: SessionStore
+  private tokenStore: TokenStore
   private router: AuthHandler
 
   constructor(options: Auth0ClientOptions) {
@@ -83,7 +89,26 @@ export class Auth0Client {
       )
     }
 
+    this.transactionStore = new TransactionStore({
+      appBaseUrl,
+      secret,
+    })
+
+    this.sessionStore = new SessionStore({
+      appBaseUrl,
+      secret,
+    })
+
+    this.tokenStore = new TokenStore({
+      appBaseUrl,
+      secret,
+    })
+
     this.router = new AuthHandler({
+      transactionStore: this.transactionStore,
+      sessionStore: this.sessionStore,
+      tokenStore: this.tokenStore,
+
       domain,
       clientId,
       clientSecret,

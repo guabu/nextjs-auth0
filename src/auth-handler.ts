@@ -22,6 +22,10 @@ export type BeforeSessionCreatedHook = (user: {
 }) => Promise<Pick<Session, "user" | "data">>
 
 export interface AuthHandlerOptions {
+  transactionStore: TransactionStore
+  sessionStore: SessionStore
+  tokenStore: TokenStore
+
   domain: string
   clientId: string
   clientSecret: string
@@ -52,20 +56,10 @@ export class AuthHandler {
   private beforeSessionCreated?: BeforeSessionCreatedHook
 
   constructor(options: AuthHandlerOptions) {
-    this.transactionStore = new TransactionStore({
-      appBaseUrl: options.appBaseUrl,
-      secret: options.secret,
-    })
-
-    this.sessionStore = new SessionStore({
-      appBaseUrl: options.appBaseUrl,
-      secret: options.secret,
-    })
-
-    this.tokenStore = new TokenStore({
-      appBaseUrl: options.appBaseUrl,
-      secret: options.secret,
-    })
+    // stores
+    this.transactionStore = options.transactionStore
+    this.sessionStore = options.sessionStore
+    this.tokenStore = options.tokenStore
 
     // authorization server
     this.issuer = `https://${options.domain}`
@@ -98,11 +92,28 @@ export class AuthHandler {
     } else if (method === "GET" && pathname === "/auth/profile") {
       return this.handleProfile(req)
     } else {
-      return NextResponse.next()
+      // no auth handler found, simply touch the sessions
+      const res = NextResponse.next()
+      const touchedSessionRes = await this.sessionStore.touch(req)
+      const touchedTokenRes = await this.tokenStore.touch(req)
+
+      touchedSessionRes.cookies
+        .getAll()
+        .forEach(({ name, value, ...options }) => {
+          res.cookies.set(name, value, options)
+        })
+
+      touchedTokenRes.cookies
+        .getAll()
+        .forEach(({ name, value, ...options }) => {
+          res.cookies.set(name, value, options)
+        })
+
+      return res
     }
   }
 
-  async handleLogin(req: NextRequest): Promise<Response> {
+  async handleLogin(req: NextRequest) {
     const authorizationServerMetadata =
       await this.discoverAuthorizationServerMetadata()
 

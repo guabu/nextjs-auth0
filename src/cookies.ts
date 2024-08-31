@@ -44,5 +44,5 @@ export interface CookieOptions {
   secure: boolean
   domain: string
   path: string
-  maxAge: number
+  maxAge?: number
 }
