@@ -266,7 +266,9 @@ export class AuthHandler {
     const session = await this.sessionStore.get(req)
 
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return new NextResponse(null, {
+        status: 401,
+      })
     }
 
     return NextResponse.json(session?.user)
