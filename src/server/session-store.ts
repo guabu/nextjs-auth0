@@ -5,14 +5,16 @@ import * as cookies from "./cookies"
 
 const SESSION_COOKIE_NAME = "__session"
 
+export interface SessionData {
+  [key: string]: any
+}
+
 export interface Session extends jose.JWTPayload {
   user: {
     [key: string]: any
   }
   // custom session data set by the user
-  data: {
-    [key: string]: any
-  }
+  data: SessionData
   internal: {
     // the session ID from the authorization server
     sid: string
@@ -20,7 +22,6 @@ export interface Session extends jose.JWTPayload {
 }
 
 interface SessionStoreOptions {
-  appBaseUrl: string
   secret: string
 
   rolling?: boolean // defaults to true
@@ -37,7 +38,6 @@ export class SessionStore {
   private cookieConfig: cookies.CookieOptions
 
   constructor({
-    appBaseUrl,
     secret,
 
     rolling = true,
@@ -50,12 +50,10 @@ export class SessionStore {
 
     this.secret = secret
 
-    const { hostname } = new URL(appBaseUrl)
     this.cookieConfig = {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
-      domain: hostname,
       path: "/",
     }
   }

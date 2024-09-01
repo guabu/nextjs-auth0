@@ -90,17 +90,14 @@ export class Auth0Client {
     }
 
     this.transactionStore = new TransactionStore({
-      appBaseUrl,
       secret,
     })
 
     this.sessionStore = new SessionStore({
-      appBaseUrl,
       secret,
     })
 
     this.tokenStore = new TokenStore({
-      appBaseUrl,
       secret,
     })
 

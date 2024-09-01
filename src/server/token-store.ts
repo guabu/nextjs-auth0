@@ -12,7 +12,6 @@ export interface TokenSet extends jose.JWTPayload {
 }
 
 interface TokenStoreOptions {
-  appBaseUrl: string
   secret: string
 
   rolling?: boolean // defaults to true
@@ -29,7 +28,6 @@ export class TokenStore {
   private cookieConfig: cookies.CookieOptions
 
   constructor({
-    appBaseUrl,
     secret,
 
     rolling = true,
@@ -42,12 +40,10 @@ export class TokenStore {
 
     this.secret = secret
 
-    const { hostname } = new URL(appBaseUrl)
     this.cookieConfig = {
       httpOnly: true,
       sameSite: "strict",
       secure: process.env.NODE_ENV === "production",
-      domain: hostname,
       path: "/",
     }
   }

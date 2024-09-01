@@ -42,7 +42,6 @@ export interface CookieOptions {
   httpOnly: boolean
   sameSite: "lax" | "strict"
   secure: boolean
-  domain: string
   path: string
   maxAge?: number
 }

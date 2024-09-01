@@ -15,7 +15,6 @@ export interface TransactionState extends jose.JWTPayload {
 }
 
 interface TransactionStoreOptions {
-  appBaseUrl: string
   secret: string
 }
 
@@ -25,27 +24,17 @@ interface TransactionStoreOptions {
  * the transaction state.
  */
 export class TransactionStore {
-  private domain: string
   private secret: string
   private cookieConfig: cookies.CookieOptions
 
-  constructor({ appBaseUrl, secret }: TransactionStoreOptions) {
-    const { hostname, protocol } = new URL(appBaseUrl)
-    this.domain = hostname
+  constructor({ secret }: TransactionStoreOptions) {
     this.secret = secret
     this.cookieConfig = {
       httpOnly: true,
       sameSite: "lax", // required to allow the cookie to be sent on the callback request
       secure: process.env.NODE_ENV === "production",
-      domain: this.domain,
       path: "/",
       maxAge: 60 * 60, // 1 hour in seconds
-    }
-
-    if (protocol !== "https:" && process.env.NODE_ENV === "production") {
-      throw new Error(
-        "The appBaseUrl must use the HTTPS protocol in production"
-      )
     }
   }
 
