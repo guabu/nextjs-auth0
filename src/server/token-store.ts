@@ -48,19 +48,19 @@ export class TokenStore {
     }
   }
 
-  async save(res: NextResponse, tokenSet: TokenSet) {
+  async save(resCookies: NextResponse["cookies"], tokenSet: TokenSet) {
     const jwe = await cookies.encrypt(tokenSet, this.secret)
     const iat = tokenSet.iat ?? this.epoch() // a new session will not have an iat, but when we're touching a session, it will already have an iat
     const maxAge = this.calculateMaxAge(iat)
 
-    res.cookies.set(TOKEN_SET_COOKIE_NAME, jwe.toString(), {
+    resCookies.set(TOKEN_SET_COOKIE_NAME, jwe.toString(), {
       ...this.cookieConfig,
       maxAge,
     })
   }
 
-  async get(req: NextRequest) {
-    const cookieValue = req.cookies.get(TOKEN_SET_COOKIE_NAME)?.value
+  async get(reqCookies: NextRequest["cookies"]) {
+    const cookieValue = reqCookies.get(TOKEN_SET_COOKIE_NAME)?.value
 
     if (!cookieValue) {
       return null
@@ -69,19 +69,19 @@ export class TokenStore {
     return cookies.decrypt<TokenSet>(cookieValue, this.secret)
   }
 
-  async delete(res: NextResponse) {
-    res.cookies.delete(TOKEN_SET_COOKIE_NAME)
+  async delete(resCookies: NextResponse["cookies"]) {
+    resCookies.delete(TOKEN_SET_COOKIE_NAME)
   }
 
-  async touch(req: NextRequest) {
-    const session = await this.get(req)
+  async touch(reqCookies: NextRequest["cookies"]) {
+    const session = await this.get(reqCookies)
     const res = new NextResponse()
 
     if (session) {
-      await this.save(res, session)
+      await this.save(res.cookies, session)
     }
 
-    return res
+    return res.cookies
   }
 
   private epoch() {

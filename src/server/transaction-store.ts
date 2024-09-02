@@ -47,19 +47,22 @@ export class TransactionStore {
     return `${TRANSACTION_COOKIE_PREFIX}${state}`
   }
 
-  async save(res: NextResponse, transactionState: TransactionState) {
+  async save(
+    resCookies: NextResponse["cookies"],
+    transactionState: TransactionState
+  ) {
     const jwe = await cookies.encrypt(transactionState, this.secret)
 
-    res.cookies.set(
+    resCookies.set(
       this.getTransactionCookieName(transactionState.state),
       jwe.toString(),
       this.cookieConfig
     )
   }
 
-  async get(req: NextRequest, state: string) {
+  async get(reqCookies: NextRequest["cookies"], state: string) {
     const cookieName = this.getTransactionCookieName(state)
-    const cookieValue = req.cookies.get(cookieName)?.value
+    const cookieValue = reqCookies.get(cookieName)?.value
 
     if (!cookieValue) {
       return null
@@ -68,7 +71,7 @@ export class TransactionStore {
     return cookies.decrypt<TransactionState>(cookieValue, this.secret)
   }
 
-  async delete(res: NextResponse, state: string) {
-    res.cookies.delete(this.getTransactionCookieName(state))
+  async delete(resCookies: NextResponse["cookies"], state: string) {
+    resCookies.delete(this.getTransactionCookieName(state))
   }
 }

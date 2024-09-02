@@ -94,20 +94,16 @@ export class AuthHandler {
     } else {
       // no auth handler found, simply touch the sessions
       const res = NextResponse.next()
-      const touchedSessionRes = await this.sessionStore.touch(req)
-      const touchedTokenRes = await this.tokenStore.touch(req)
+      const touchedSessionCookies = await this.sessionStore.touch(req.cookies)
+      const touchedTokenCookies = await this.tokenStore.touch(req.cookies)
 
-      touchedSessionRes.cookies
-        .getAll()
-        .forEach(({ name, value, ...options }) => {
-          res.cookies.set(name, value, options)
-        })
+      touchedSessionCookies.getAll().forEach(({ name, value, ...options }) => {
+        res.cookies.set(name, value, options)
+      })
 
-      touchedTokenRes.cookies
-        .getAll()
-        .forEach(({ name, value, ...options }) => {
-          res.cookies.set(name, value, options)
-        })
+      touchedTokenCookies.getAll().forEach(({ name, value, ...options }) => {
+        res.cookies.set(name, value, options)
+      })
 
       return res
     }
@@ -161,13 +157,13 @@ export class AuthHandler {
     }
 
     const res = NextResponse.redirect(authorizationUrl.toString())
-    await this.transactionStore.save(res, transactionState)
+    await this.transactionStore.save(res.cookies, transactionState)
 
     return res
   }
 
   async handleLogout(req: NextRequest) {
-    const session = await this.sessionStore.get(req)
+    const session = await this.sessionStore.get(req.cookies)
     const authorizationServerMetadata =
       await this.discoverAuthorizationServerMetadata()
 
@@ -180,8 +176,8 @@ export class AuthHandler {
     }
 
     const res = NextResponse.redirect(url)
-    await this.sessionStore.delete(res)
-    await this.tokenStore.delete(res)
+    await this.sessionStore.delete(res.cookies)
+    await this.tokenStore.delete(res.cookies)
 
     return res
   }
@@ -192,7 +188,7 @@ export class AuthHandler {
       throw new Error("The state parameter is missing.")
     }
 
-    const transactionState = await this.transactionStore.get(req, state)
+    const transactionState = await this.transactionStore.get(req.cookies, state)
     if (!transactionState) {
       throw new Error("The transaction state could not be found.")
     }
@@ -200,7 +196,7 @@ export class AuthHandler {
     const res = NextResponse.redirect(
       new URL(transactionState.returnTo, this.appBaseUrl)
     )
-    this.transactionStore.delete(res, state)
+    this.transactionStore.delete(res.cookies, state)
 
     const authorizationServerMetadata =
       await this.discoverAuthorizationServerMetadata()
@@ -252,8 +248,8 @@ export class AuthHandler {
       session.data = data || {}
     }
 
-    await this.sessionStore.save(res, session)
-    await this.tokenStore.save(res, {
+    await this.sessionStore.save(res.cookies, session)
+    await this.tokenStore.save(res.cookies, {
       accessToken: oidcRes.access_token,
       refreshToken: oidcRes.refresh_token,
       expiresAt: Math.floor(Date.now() / 1000) + Number(oidcRes.expires_in),
@@ -263,7 +259,7 @@ export class AuthHandler {
   }
 
   async handleProfile(req: NextRequest) {
-    const session = await this.sessionStore.get(req)
+    const session = await this.sessionStore.get(req.cookies)
 
     if (!session) {
       return new NextResponse(null, {
