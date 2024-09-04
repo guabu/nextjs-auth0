@@ -48,7 +48,7 @@ export class TransactionStore {
   }
 
   async save(
-    resCookies: NextResponse["cookies"],
+    resCookies: cookies.ResponseCookies,
     transactionState: TransactionState
   ) {
     const jwe = await cookies.encrypt(transactionState, this.secret)
@@ -60,7 +60,7 @@ export class TransactionStore {
     )
   }
 
-  async get(reqCookies: NextRequest["cookies"], state: string) {
+  async get(reqCookies: cookies.RequestCookies, state: string) {
     const cookieName = this.getTransactionCookieName(state)
     const cookieValue = reqCookies.get(cookieName)?.value
 
@@ -71,7 +71,7 @@ export class TransactionStore {
     return cookies.decrypt<TransactionState>(cookieValue, this.secret)
   }
 
-  async delete(resCookies: NextResponse["cookies"], state: string) {
+  async delete(resCookies: cookies.ResponseCookies, state: string) {
     resCookies.delete(this.getTransactionCookieName(state))
   }
 }

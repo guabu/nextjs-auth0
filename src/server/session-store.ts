@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import type * as jose from "jose"
 
 import * as cookies from "./cookies"
+import { User } from "./user"
 
 const SESSION_COOKIE_NAME = "__session"
 
@@ -10,9 +11,7 @@ export interface SessionData {
 }
 
 export interface Session extends jose.JWTPayload {
-  user: {
-    [key: string]: any
-  }
+  user: User
   // custom session data set by the user
   data: SessionData
   internal: {
@@ -58,7 +57,7 @@ export class SessionStore {
     }
   }
 
-  async save(resCookies: NextResponse["cookies"], session: Session) {
+  async save(resCookies: cookies.ResponseCookies, session: Session) {
     const jwe = await cookies.encrypt(session, this.secret)
     const iat = session.iat ?? this.epoch() // a new session will not have an iat, but when we're touching a session, it will already have an iat
     const maxAge = this.calculateMaxAge(iat)
@@ -69,7 +68,7 @@ export class SessionStore {
     })
   }
 
-  async get(reqCookies: NextRequest["cookies"]) {
+  async get(reqCookies: cookies.RequestCookies) {
     const cookieValue = reqCookies.get(SESSION_COOKIE_NAME)?.value
 
     if (!cookieValue) {
@@ -79,19 +78,19 @@ export class SessionStore {
     return cookies.decrypt<Session>(cookieValue, this.secret)
   }
 
-  async delete(resCookies: NextResponse["cookies"]) {
+  async delete(resCookies: cookies.ResponseCookies) {
     resCookies.delete(SESSION_COOKIE_NAME)
   }
 
-  async touch(reqCookies: NextRequest["cookies"]) {
+  async touch(reqCookies: cookies.RequestCookies) {
     const session = await this.get(reqCookies)
-    const res = new NextResponse()
+    const { cookies } = new NextResponse()
 
     if (session) {
-      await this.save(res.cookies, session)
+      await this.save(cookies, session)
     }
 
-    return res.cookies
+    return cookies
   }
 
   private epoch() {

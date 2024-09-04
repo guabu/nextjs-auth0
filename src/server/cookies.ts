@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from "next/server"
 import hkdf from "@panva/hkdf"
 import * as jose from "jose"
 
@@ -45,3 +46,6 @@ export interface CookieOptions {
   path: string
   maxAge?: number
 }
+
+export type RequestCookies = Pick<NextRequest["cookies"], "get">
+export type ResponseCookies = Pick<NextResponse["cookies"], "set" | "delete">

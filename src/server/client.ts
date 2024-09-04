@@ -1,5 +1,8 @@
+import { cookies } from "next/headers"
+import { NextRequest } from "next/server"
+
 import { AuthHandler, BeforeSessionCreatedHook } from "./auth-handler"
-import { SessionStore } from "./session-store"
+import { Session, SessionData, SessionStore } from "./session-store"
 import { TokenStore } from "./token-store"
 import { TransactionStore } from "./transaction-store"
 
@@ -122,5 +125,30 @@ export class Auth0Client {
 
   handler() {
     return this.router.handler.bind(this.router)
+  }
+
+  /**
+   * getSession returns the session data for the current request.
+   * This method can be used in Server Actions, Route Handlers, and RSCs in the App Router.
+   */
+  async getSession(): Promise<Session | null> {
+    return this.sessionStore.get(cookies())
+  }
+
+  /**
+   * updateSessionData updates the current session's data.
+   * This method can be used in Server Actions and Route Handlers.
+   */
+  async updateSessionData(data: SessionData) {
+    const session = await this.sessionStore.get(cookies())
+
+    if (!session) {
+      throw new Error("No session found.")
+    }
+
+    await this.sessionStore.save(cookies(), {
+      ...session,
+      data,
+    })
   }
 }

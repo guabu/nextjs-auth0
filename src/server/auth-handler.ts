@@ -4,18 +4,7 @@ import * as oauth from "oauth4webapi"
 import { Session, SessionStore } from "./session-store"
 import { TokenStore } from "./token-store"
 import { TransactionState, TransactionStore } from "./transaction-store"
-
-const DEFAULT_ALLOWED_CLAIMS = [
-  "sub",
-  "name",
-  "nickname",
-  "given_name",
-  "family_name",
-  "picture",
-  "email",
-  "email_verified",
-  "org_id",
-]
+import { filterClaims } from "./user"
 
 export type BeforeSessionCreatedHook = (user: {
   [key: string]: any
@@ -235,7 +224,7 @@ export class AuthHandler {
 
     const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
     let session: Session = {
-      user: this.filterClaims(idTokenClaims),
+      user: filterClaims(idTokenClaims),
       data: {},
       internal: {
         sid: idTokenClaims.sid as string,
@@ -282,17 +271,5 @@ export class AuthHandler {
     } catch (e) {
       throw new Error("Failed to discover the authorization server.")
     }
-  }
-
-  private filterClaims(claims: { [key: string]: any }) {
-    return Object.keys(claims).reduce(
-      (acc, key) => {
-        if (DEFAULT_ALLOWED_CLAIMS.includes(key)) {
-          acc[key] = claims[key]
-        }
-        return acc
-      },
-      {} as { [key: string]: any }
-    )
   }
 }
