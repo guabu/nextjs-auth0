@@ -10,6 +10,17 @@ export type BeforeSessionSavedHook = (user: {
   [key: string]: any
 }) => Promise<Pick<Session, "user" | "data">>
 
+// params passed to the /authorize endpoint that cannot be overwritten
+const INTERNAL_AUTHORIZE_PARAMS = [
+  "client_id",
+  "redirect_uri",
+  "response_type",
+  "code_challenge",
+  "code_challenge_method",
+  "state",
+  "nonce",
+]
+
 export interface AuthHandlerOptions {
   transactionStore: TransactionStore
   sessionStore: SessionStore
@@ -101,8 +112,8 @@ export class AuthHandler {
   }
 
   async handleLogin(req: NextRequest) {
-    const authorizationServerMetadata =
-      await this.discoverAuthorizationServerMetadata()
+    // const authorizationServerMetadata =
+    //   await this.discoverAuthorizationServerMetadata()
 
     const returnTo =
       req.nextUrl.searchParams.get("returnTo") || this.signInReturnToPath
@@ -114,7 +125,8 @@ export class AuthHandler {
     const nonce = oauth.generateRandomNonce()
 
     const authorizationUrl = new URL(
-      authorizationServerMetadata.authorization_endpoint!
+      "http://example.com"
+      // authorizationServerMetadata.authorization_endpoint!
     )
     authorizationUrl.searchParams.set(
       "client_id",
@@ -137,6 +149,13 @@ export class AuthHandler {
     if (this.maxAge !== undefined) {
       authorizationUrl.searchParams.set("max_age", this.maxAge.toString())
     }
+
+    // any custom params to forward to /authorize
+    req.nextUrl.searchParams.forEach((val, key) => {
+      if (!INTERNAL_AUTHORIZE_PARAMS.includes(key)) {
+        authorizationUrl.searchParams.set(key, val)
+      }
+    })
 
     const transactionState: TransactionState = {
       nonce,
