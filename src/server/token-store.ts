@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import type * as jose from "jose"
 
 import * as cookies from "./cookies"
@@ -8,7 +8,7 @@ const TOKEN_SET_COOKIE_NAME = "__token_set"
 export interface TokenSet extends jose.JWTPayload {
   accessToken: string
   refreshToken?: string
-  expiresAt: number
+  expiresAt: number // the time at which the access token expires in seconds since epoch
 }
 
 interface TokenStoreOptions {
@@ -48,9 +48,14 @@ export class TokenStore {
     }
   }
 
+  /**
+   * save adds the encrypted token set cookie as a `Set-Cookie` header. If the `iat` property
+   * is pressent on the token set, then it will be used to compute the `maxAge` cookie value.
+   */
   async save(resCookies: cookies.ResponseCookies, tokenSet: TokenSet) {
     const jwe = await cookies.encrypt(tokenSet, this.secret)
-    const iat = tokenSet.iat ?? this.epoch() // a new session will not have an iat, but when we're touching a session, it will already have an iat
+    // if the `iat` claim is present, use it to compute the `maxAge`
+    const iat = tokenSet.iat ?? this.epoch()
     const maxAge = this.calculateMaxAge(iat)
 
     resCookies.set(TOKEN_SET_COOKIE_NAME, jwe.toString(), {
@@ -78,6 +83,8 @@ export class TokenStore {
     const res = new NextResponse()
 
     if (session) {
+      // we pass the existing session (containing an `iat` claim) to the save method
+      // which will update the cookie's `maxAge` property based on the `iat` time
       await this.save(res.cookies, session)
     }
 

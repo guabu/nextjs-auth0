@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import type * as jose from "jose"
 
 import * as cookies from "./cookies"
@@ -57,9 +57,14 @@ export class SessionStore {
     }
   }
 
+  /**
+   * save adds the encrypted session cookie as a `Set-Cookie` header. If the `iat` property
+   * is pressent on the session, then it will be used to compute the `maxAge` cookie value.
+   */
   async save(resCookies: cookies.ResponseCookies, session: Session) {
     const jwe = await cookies.encrypt(session, this.secret)
-    const iat = session.iat ?? this.epoch() // a new session will not have an iat, but when we're touching a session, it will already have an iat
+    // if the `iat` claim is present, use it to compute the `maxAge`
+    const iat = session.iat ?? this.epoch()
     const maxAge = this.calculateMaxAge(iat)
 
     resCookies.set(SESSION_COOKIE_NAME, jwe.toString(), {
@@ -87,6 +92,8 @@ export class SessionStore {
     const { cookies } = new NextResponse()
 
     if (session) {
+      // we pass the existing session (containing an `iat` claim) to the save method
+      // which will update the cookie's `maxAge` property based on the `iat` time
       await this.save(cookies, session)
     }
 

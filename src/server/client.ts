@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 import { NextRequest } from "next/server"
 
-import { AuthHandler, BeforeSessionCreatedHook } from "./auth-handler"
+import { AuthHandler, BeforeSessionSavedHook } from "./auth-handler"
 import { Session, SessionData, SessionStore } from "./session-store"
 import { TokenStore } from "./token-store"
 import { TransactionStore } from "./transaction-store"
@@ -20,7 +20,7 @@ interface Auth0ClientOptions {
   signInReturnToPath?: string
 
   // hooks
-  beforeSessionCreated?: BeforeSessionCreatedHook
+  beforeSessionSaved?: BeforeSessionSavedHook
 }
 
 export class Auth0Client {
@@ -46,7 +46,7 @@ export class Auth0Client {
     const signInReturnToPath =
       options.signInReturnToPath || process.env.SIGN_IN_RETURN_TO_PATH || "/"
 
-    const beforeSessionCreated = options.beforeSessionCreated
+    const beforeSessionSaved = options.beforeSessionSaved
 
     // TODO: update docs links to specific pages where the options are documented
     if (!domain) {
@@ -119,7 +119,7 @@ export class Auth0Client {
       secret,
       signInReturnToPath,
 
-      beforeSessionCreated,
+      beforeSessionSaved,
     })
   }
 
@@ -150,5 +150,24 @@ export class Auth0Client {
       ...session,
       data,
     })
+  }
+
+  async getAccessToken() {
+    const tokenSet = await this.tokenStore.get(cookies())
+    const session = await this.sessionStore.get(cookies())
+
+    if (!tokenSet || !session) {
+      throw new Error("Token set does not exist or you are not authenticated.")
+    }
+
+    const updatedTokenSet = await this.router.getAccessToken(tokenSet)
+
+    await this.sessionStore.save(cookies(), session)
+    await this.tokenStore.save(cookies(), updatedTokenSet)
+
+    return {
+      token: updatedTokenSet.accessToken,
+      expiresAt: updatedTokenSet.expiresAt
+    }
   }
 }

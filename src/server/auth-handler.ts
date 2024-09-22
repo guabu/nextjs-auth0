@@ -2,11 +2,11 @@ import { NextResponse, type NextRequest } from "next/server"
 import * as oauth from "oauth4webapi"
 
 import { Session, SessionStore } from "./session-store"
-import { TokenStore } from "./token-store"
+import { TokenSet, TokenStore } from "./token-store"
 import { TransactionState, TransactionStore } from "./transaction-store"
 import { filterClaims } from "./user"
 
-export type BeforeSessionCreatedHook = (user: {
+export type BeforeSessionSavedHook = (user: {
   [key: string]: any
 }) => Promise<Pick<Session, "user" | "data">>
 
@@ -25,7 +25,7 @@ export interface AuthHandlerOptions {
   appBaseUrl: string
   signInReturnToPath: string
 
-  beforeSessionCreated?: BeforeSessionCreatedHook
+  beforeSessionSaved?: BeforeSessionSavedHook
 }
 
 export class AuthHandler {
@@ -42,7 +42,7 @@ export class AuthHandler {
   private appBaseUrl: string
   private signInReturnToPath: string
 
-  private beforeSessionCreated?: BeforeSessionCreatedHook
+  private beforeSessionSaved?: BeforeSessionSavedHook
 
   constructor(options: AuthHandlerOptions) {
     // stores
@@ -65,7 +65,7 @@ export class AuthHandler {
     this.signInReturnToPath = options.signInReturnToPath
 
     // hooks
-    this.beforeSessionCreated = options.beforeSessionCreated
+    this.beforeSessionSaved = options.beforeSessionSaved
   }
 
   async handler(req: NextRequest) {
@@ -80,6 +80,8 @@ export class AuthHandler {
       return this.handleCallback(req)
     } else if (method === "GET" && pathname === "/auth/profile") {
       return this.handleProfile(req)
+    } else if (method === "GET" && pathname === "/auth/access-token") {
+      return this.handleAccessToken(req)
     } else {
       // no auth handler found, simply touch the sessions
       const res = NextResponse.next()
@@ -231,8 +233,8 @@ export class AuthHandler {
       },
     }
 
-    if (this.beforeSessionCreated) {
-      const { user, data } = await this.beforeSessionCreated(idTokenClaims)
+    if (this.beforeSessionSaved) {
+      const { user, data } = await this.beforeSessionSaved(idTokenClaims)
       session.user = user || {}
       session.data = data || {}
     }
@@ -257,6 +259,69 @@ export class AuthHandler {
     }
 
     return NextResponse.json(session?.user)
+  }
+
+  async handleAccessToken(req: NextRequest) {
+    const tokenSet = await this.tokenStore.get(req.cookies)
+    const session = await this.sessionStore.get(req.cookies)
+
+    if (!tokenSet || !session) {
+      return NextResponse.json({
+        error: "Token set does not exist or you are not authenticated."
+      }, {
+        status: 401,
+      })
+    }
+
+    const updatedTokenSet = await this.getAccessToken(tokenSet)
+
+    const res = NextResponse.json({
+      token: updatedTokenSet.accessToken,
+      expires_at: updatedTokenSet.expiresAt
+    })
+
+    await this.sessionStore.save(res.cookies, session)
+    await this.tokenStore.save(res.cookies, updatedTokenSet)
+
+    return res
+  }
+
+  async getAccessToken(tokenSet: TokenSet): Promise<TokenSet> {
+    // the access token has expired but we do not have a refresh token
+    if (!tokenSet.refreshToken && tokenSet.expiresAt < (Date.now() / 1000)) {
+      throw new Error("The access token has expired and a refresh token was not granted.")
+    }
+
+    // the access token has expired and we have a refresh token
+    if (tokenSet.refreshToken && tokenSet.expiresAt < (Date.now() / 1000)) {
+      const authorizationServerMetadata = await this.discoverAuthorizationServerMetadata()
+      const refreshTokenRes = await oauth.refreshTokenGrantRequest(authorizationServerMetadata, this.clientMetadata, tokenSet.refreshToken)
+      const oauthRes = await oauth.processRefreshTokenResponse(authorizationServerMetadata, this.clientMetadata, refreshTokenRes)
+
+      if (oauth.isOAuth2Error(oauthRes)) {
+        throw new Error("OAuth2 error")
+      }
+
+      const accessTokenExpiresAt = Math.floor(Date.now() / 1000) + Number(oauthRes.expires_in)
+
+      let updatedTokenSet = {
+        ...tokenSet, // contains the existing `iat` claim to maintain the session lifetime
+        accessToken: oauthRes.access_token,
+        expiresAt: accessTokenExpiresAt,
+      }
+
+      if (oauthRes.refresh_token) {
+        // refresh token rotation is enabled, persist the new refresh token from the response
+        updatedTokenSet.refreshToken = oauthRes.refresh_token
+      } else {
+        // we did not get a refresh token back, keep the current long-lived refresh token around
+        updatedTokenSet.refreshToken = tokenSet.refreshToken
+      }
+
+      return updatedTokenSet
+    }
+
+    return tokenSet
   }
 
   private async discoverAuthorizationServerMetadata() {
