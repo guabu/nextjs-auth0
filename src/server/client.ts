@@ -152,6 +152,11 @@ export class Auth0Client {
     })
   }
 
+  /**
+   * getAccessToken returns the access token. If it is expired and a refresh token
+   * is available, the access token will be refreshed and the updated token set will
+   * be persisted.
+   */
   async getAccessToken() {
     const tokenSet = await this.tokenStore.get(cookies())
     const session = await this.sessionStore.get(cookies())
