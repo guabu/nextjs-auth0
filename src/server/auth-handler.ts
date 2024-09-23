@@ -112,8 +112,8 @@ export class AuthHandler {
   }
 
   async handleLogin(req: NextRequest) {
-    // const authorizationServerMetadata =
-    //   await this.discoverAuthorizationServerMetadata()
+    const authorizationServerMetadata =
+      await this.discoverAuthorizationServerMetadata()
 
     const returnTo =
       req.nextUrl.searchParams.get("returnTo") || this.signInReturnToPath
@@ -125,8 +125,7 @@ export class AuthHandler {
     const nonce = oauth.generateRandomNonce()
 
     const authorizationUrl = new URL(
-      "http://example.com"
-      // authorizationServerMetadata.authorization_endpoint!
+      authorizationServerMetadata.authorization_endpoint!
     )
     authorizationUrl.searchParams.set(
       "client_id",
