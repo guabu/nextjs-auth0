@@ -78,19 +78,6 @@ export class TokenStore {
     resCookies.delete(TOKEN_SET_COOKIE_NAME)
   }
 
-  async touch(reqCookies: cookies.RequestCookies) {
-    const session = await this.get(reqCookies)
-    const res = new NextResponse()
-
-    if (session) {
-      // we pass the existing session (containing an `iat` claim) to the save method
-      // which will update the cookie's `maxAge` property based on the `iat` time
-      await this.save(res.cookies, session)
-    }
-
-    return res.cookies
-  }
-
   private epoch() {
     return (Date.now() / 1000) | 0
   }

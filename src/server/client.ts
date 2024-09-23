@@ -1,7 +1,6 @@
 import { cookies } from "next/headers"
-import { NextRequest } from "next/server"
 
-import { AuthHandler, BeforeSessionSavedHook } from "./auth-handler"
+import { AuthClient, BeforeSessionSavedHook } from "./auth-client"
 import { Session, SessionData, SessionStore } from "./session-store"
 import { TokenStore } from "./token-store"
 import { TransactionStore } from "./transaction-store"
@@ -27,7 +26,7 @@ export class Auth0Client {
   private transactionStore: TransactionStore
   private sessionStore: SessionStore
   private tokenStore: TokenStore
-  private router: AuthHandler
+  private authClient: AuthClient
 
   constructor(options: Auth0ClientOptions) {
     const domain = options.domain || process.env.AUTH0_DOMAIN
@@ -104,7 +103,7 @@ export class Auth0Client {
       secret,
     })
 
-    this.router = new AuthHandler({
+    this.authClient = new AuthClient({
       transactionStore: this.transactionStore,
       sessionStore: this.sessionStore,
       tokenStore: this.tokenStore,
@@ -124,7 +123,7 @@ export class Auth0Client {
   }
 
   handler() {
-    return this.router.handler.bind(this.router)
+    return this.authClient.handler.bind(this.authClient)
   }
 
   /**
@@ -153,26 +152,18 @@ export class Auth0Client {
   }
 
   /**
-   * getAccessToken returns the access token. If it is expired and a refresh token
-   * is available, the access token will be refreshed and the updated token set will
-   * be persisted.
+   * getAccessToken returns the access token.
    */
   async getAccessToken() {
     const tokenSet = await this.tokenStore.get(cookies())
-    const session = await this.sessionStore.get(cookies())
 
-    if (!tokenSet || !session) {
+    if (!tokenSet) {
       throw new Error("Token set does not exist or you are not authenticated.")
     }
 
-    const updatedTokenSet = await this.router.getAccessToken(tokenSet)
-
-    await this.sessionStore.save(cookies(), session)
-    await this.tokenStore.save(cookies(), updatedTokenSet)
-
     return {
-      token: updatedTokenSet.accessToken,
-      expiresAt: updatedTokenSet.expiresAt
+      token: tokenSet.accessToken,
+      expiresAt: tokenSet.expiresAt
     }
   }
 }

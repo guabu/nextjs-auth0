@@ -21,7 +21,7 @@ const INTERNAL_AUTHORIZE_PARAMS = [
   "nonce",
 ]
 
-export interface AuthHandlerOptions {
+export interface AuthClientOptions {
   transactionStore: TransactionStore
   sessionStore: SessionStore
   tokenStore: TokenStore
@@ -39,7 +39,7 @@ export interface AuthHandlerOptions {
   beforeSessionSaved?: BeforeSessionSavedHook
 }
 
-export class AuthHandler {
+export class AuthClient {
   private transactionStore: TransactionStore
   private sessionStore: SessionStore
   private tokenStore: TokenStore
@@ -55,7 +55,7 @@ export class AuthHandler {
 
   private beforeSessionSaved?: BeforeSessionSavedHook
 
-  constructor(options: AuthHandlerOptions) {
+  constructor(options: AuthClientOptions) {
     // stores
     this.transactionStore = options.transactionStore
     this.sessionStore = options.sessionStore
@@ -96,16 +96,21 @@ export class AuthHandler {
     } else {
       // no auth handler found, simply touch the sessions
       const res = NextResponse.next()
-      const touchedSessionCookies = await this.sessionStore.touch(req.cookies)
-      const touchedTokenCookies = await this.tokenStore.touch(req.cookies)
+      const session = await this.sessionStore.get(req.cookies)
+      const tokenSet = await this.tokenStore.get(req.cookies)
 
-      touchedSessionCookies.getAll().forEach(({ name, value, ...options }) => {
-        res.cookies.set(name, value, options)
-      })
+      // refresh the access token, if necessary, passing the existing `iat` claim
+      // to update the cookie's `maxAge`
+      if (tokenSet) {
+        const updatedTokenSet = await this.getTokenSet(tokenSet)
+        await this.tokenStore.save(res.cookies, updatedTokenSet)
+      }
 
-      touchedTokenCookies.getAll().forEach(({ name, value, ...options }) => {
-        res.cookies.set(name, value, options)
-      })
+      // we pass the existing session (containing an `iat` claim) to the save method
+      // which will update the cookie's `maxAge` property based on the `iat` time
+      if (session) {
+        await this.sessionStore.save(res.cookies, session)
+      }
 
       return res
     }
@@ -291,7 +296,7 @@ export class AuthHandler {
       })
     }
 
-    const updatedTokenSet = await this.getAccessToken(tokenSet)
+    const updatedTokenSet = await this.getTokenSet(tokenSet)
 
     const res = NextResponse.json({
       token: updatedTokenSet.accessToken,
@@ -304,7 +309,7 @@ export class AuthHandler {
     return res
   }
 
-  async getAccessToken(tokenSet: TokenSet): Promise<TokenSet> {
+  async getTokenSet(tokenSet: TokenSet): Promise<TokenSet> {
     // the access token has expired but we do not have a refresh token
     if (!tokenSet.refreshToken && tokenSet.expiresAt < (Date.now() / 1000)) {
       throw new Error("The access token has expired and a refresh token was not granted.")
