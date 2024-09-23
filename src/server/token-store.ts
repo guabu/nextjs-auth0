@@ -42,7 +42,7 @@ export class TokenStore {
 
     this.cookieConfig = {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
     }
