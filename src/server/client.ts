@@ -1,9 +1,11 @@
 import { cookies } from "next/headers"
 
 import { AuthClient, BeforeSessionSavedHook } from "./auth-client"
-import { Session, SessionData, SessionStore } from "./session-store"
 import { TokenStore } from "./token-store"
 import { TransactionStore } from "./transaction-store"
+import { StatelessSessionStore } from "./session/stateless-session-store"
+import { SessionStore, StatefulSessionStore } from "./session/stateful-session-store"
+import { AbstractSessionStore, SessionData } from "./session/abstract-session-store"
 
 interface Auth0ClientOptions {
   // authorization server configuration
@@ -20,11 +22,14 @@ interface Auth0ClientOptions {
 
   // hooks
   beforeSessionSaved?: BeforeSessionSavedHook
+
+  // provide a session store to persist sessions in your own data store
+  sessionStore?: SessionStore
 }
 
 export class Auth0Client {
   private transactionStore: TransactionStore
-  private sessionStore: SessionStore
+  private sessionStore: AbstractSessionStore
   private tokenStore: TokenStore
   private authClient: AuthClient
 
@@ -44,8 +49,6 @@ export class Auth0Client {
     const secret = options.secret || process.env.AUTH0_SECRET
     const signInReturnToPath =
       options.signInReturnToPath || process.env.SIGN_IN_RETURN_TO_PATH || "/"
-
-    const beforeSessionSaved = options.beforeSessionSaved
 
     // TODO: update docs links to specific pages where the options are documented
     if (!domain) {
@@ -95,9 +98,14 @@ export class Auth0Client {
       secret,
     })
 
-    this.sessionStore = new SessionStore({
-      secret,
-    })
+    this.sessionStore = options.sessionStore ?
+      new StatefulSessionStore({
+        secret,
+        store: options.sessionStore,
+      })
+      : new StatelessSessionStore({
+        secret,
+      })
 
     this.tokenStore = new TokenStore({
       secret,
@@ -118,7 +126,7 @@ export class Auth0Client {
       secret,
       signInReturnToPath,
 
-      beforeSessionSaved,
+      beforeSessionSaved: options.beforeSessionSaved,
     })
   }
 
@@ -130,7 +138,7 @@ export class Auth0Client {
    * getSession returns the session data for the current request.
    * This method can be used in Server Actions, Route Handlers, and RSCs in the App Router.
    */
-  async getSession(): Promise<Session | null> {
+  async getSession(): Promise<SessionData | null> {
     return this.sessionStore.get(cookies())
   }
 
@@ -138,14 +146,14 @@ export class Auth0Client {
    * updateSessionData updates the current session's data.
    * This method can be used in Server Actions and Route Handlers.
    */
-  async updateSessionData(data: SessionData) {
+  async updateSessionData(data: { [key: string]: any }) {
     const session = await this.sessionStore.get(cookies())
 
     if (!session) {
       throw new Error("No session found.")
     }
 
-    await this.sessionStore.save(cookies(), {
+    await this.sessionStore.set(cookies(), cookies(), {
       ...session,
       data,
     })

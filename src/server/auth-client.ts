@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server"
 import * as oauth from "oauth4webapi"
 
-import { Session, SessionStore } from "./session-store"
 import { TokenSet, TokenStore } from "./token-store"
 import { TransactionState, TransactionStore } from "./transaction-store"
 import { filterClaims } from "./user"
+import { AbstractSessionStore, SessionData } from "./session/abstract-session-store"
 
 export type BeforeSessionSavedHook = (user: {
   [key: string]: any
-}) => Promise<Pick<Session, "user" | "data">>
+}) => Promise<Pick<SessionData, "user" | "data">>
 
 // params passed to the /authorize endpoint that cannot be overwritten
 const INTERNAL_AUTHORIZE_PARAMS = [
@@ -23,7 +23,7 @@ const INTERNAL_AUTHORIZE_PARAMS = [
 
 export interface AuthClientOptions {
   transactionStore: TransactionStore
-  sessionStore: SessionStore
+  sessionStore: AbstractSessionStore
   tokenStore: TokenStore
 
   domain: string
@@ -41,7 +41,7 @@ export interface AuthClientOptions {
 
 export class AuthClient {
   private transactionStore: TransactionStore
-  private sessionStore: SessionStore
+  private sessionStore: AbstractSessionStore
   private tokenStore: TokenStore
 
   private clientMetadata: oauth.Client
@@ -109,7 +109,7 @@ export class AuthClient {
       // we pass the existing session (containing an `iat` claim) to the save method
       // which will update the cookie's `maxAge` property based on the `iat` time
       if (session) {
-        await this.sessionStore.save(res.cookies, session)
+        await this.sessionStore.set(req.cookies, res.cookies, session)
       }
 
       return res
@@ -190,7 +190,7 @@ export class AuthClient {
     }
 
     const res = NextResponse.redirect(url)
-    await this.sessionStore.delete(res.cookies)
+    await this.sessionStore.delete(req.cookies, res.cookies)
     await this.tokenStore.delete(res.cookies)
 
     return res
@@ -248,7 +248,7 @@ export class AuthClient {
     }
 
     const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
-    let session: Session = {
+    let session: SessionData = {
       user: filterClaims(idTokenClaims),
       data: {},
       internal: {
@@ -262,7 +262,7 @@ export class AuthClient {
       session.data = data || {}
     }
 
-    await this.sessionStore.save(res.cookies, session)
+    await this.sessionStore.set(req.cookies, res.cookies, session)
     await this.tokenStore.save(res.cookies, {
       accessToken: oidcRes.access_token,
       refreshToken: oidcRes.refresh_token,
@@ -303,7 +303,7 @@ export class AuthClient {
       expires_at: updatedTokenSet.expiresAt
     })
 
-    await this.sessionStore.save(res.cookies, session)
+    await this.sessionStore.set(req.cookies, res.cookies, session)
     await this.tokenStore.save(res.cookies, updatedTokenSet)
 
     return res
