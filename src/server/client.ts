@@ -1,11 +1,17 @@
 import { cookies } from "next/headers"
 
 import { AuthClient, BeforeSessionSavedHook } from "./auth-client"
-import { TokenStore } from "./token-store"
-import { TransactionStore } from "./transaction-store"
+import {
+  AbstractSessionStore,
+  SessionData,
+  SessionMetadata,
+} from "./session/abstract-session-store"
+import {
+  SessionStore,
+  StatefulSessionStore,
+} from "./session/stateful-session-store"
 import { StatelessSessionStore } from "./session/stateless-session-store"
-import { SessionStore, StatefulSessionStore } from "./session/stateful-session-store"
-import { AbstractSessionStore, SessionData } from "./session/abstract-session-store"
+import { TransactionStore } from "./transaction-store"
 
 interface Auth0ClientOptions {
   // authorization server configuration
@@ -30,7 +36,6 @@ interface Auth0ClientOptions {
 export class Auth0Client {
   private transactionStore: TransactionStore
   private sessionStore: AbstractSessionStore
-  private tokenStore: TokenStore
   private authClient: AuthClient
 
   constructor(options: Auth0ClientOptions) {
@@ -98,23 +103,18 @@ export class Auth0Client {
       secret,
     })
 
-    this.sessionStore = options.sessionStore ?
-      new StatefulSessionStore({
-        secret,
-        store: options.sessionStore,
-      })
+    this.sessionStore = options.sessionStore
+      ? new StatefulSessionStore({
+          secret,
+          store: options.sessionStore,
+        })
       : new StatelessSessionStore({
-        secret,
-      })
-
-    this.tokenStore = new TokenStore({
-      secret,
-    })
+          secret,
+        })
 
     this.authClient = new AuthClient({
       transactionStore: this.transactionStore,
       sessionStore: this.sessionStore,
-      tokenStore: this.tokenStore,
 
       domain,
       clientId,
@@ -143,10 +143,10 @@ export class Auth0Client {
   }
 
   /**
-   * updateSessionData updates the current session's data.
+   * updateSessionMetadata updates the current session's metadata.
    * This method can be used in Server Actions and Route Handlers.
    */
-  async updateSessionData(data: { [key: string]: any }) {
+  async updateSessionMetadata(metadata: SessionMetadata) {
     const session = await this.sessionStore.get(cookies())
 
     if (!session) {
@@ -155,7 +155,7 @@ export class Auth0Client {
 
     await this.sessionStore.set(cookies(), cookies(), {
       ...session,
-      data,
+      metadata,
     })
   }
 
@@ -163,15 +163,15 @@ export class Auth0Client {
    * getAccessToken returns the access token.
    */
   async getAccessToken() {
-    const tokenSet = await this.tokenStore.get(cookies())
+    const session = await this.sessionStore.get(cookies())
 
-    if (!tokenSet) {
-      throw new Error("Token set does not exist or you are not authenticated.")
+    if (!session) {
+      throw new Error("You are not authenticated.")
     }
 
     return {
-      token: tokenSet.accessToken,
-      expiresAt: tokenSet.expiresAt
+      token: session.tokenSet.accessToken,
+      expiresAt: session.tokenSet.expiresAt,
     }
   }
 }

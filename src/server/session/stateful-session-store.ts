@@ -8,22 +8,21 @@ interface SessionCookieValue {
   iat: number // TODO: do we want to use this or add it as a value to the DB?
 }
 
-// TODO: think of a better way to name things here (conflicting with the class)
 export interface SessionStore {
   /**
    * Gets the session from the store given a session ID.
    */
-  get(sid: string): Promise<SessionData | null>;
+  get(sid: string): Promise<SessionData | null>
 
   /**
    * Upsert a session in the store given a session ID and `SessionData`.
    */
-  set(sid: string, session: SessionData): Promise<void>;
+  set(sid: string, session: SessionData): Promise<void>
 
   /**
    * Destroys the session with the given session ID.
    */
-  delete(sid: string): Promise<void>;
+  delete(sid: string): Promise<void>
 }
 
 interface StatefulSessionStoreOptions {
@@ -38,12 +37,12 @@ interface StatefulSessionStoreOptions {
 
 // TODO: revise this
 const genId = () => {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
   return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-};
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+}
 
 export class StatefulSessionStore extends AbstractSessionStore {
   private store: SessionStore
@@ -55,13 +54,12 @@ export class StatefulSessionStore extends AbstractSessionStore {
     rolling = true,
     absoluteDuration = 60 * 60 * 24 * 30, // 30 days in seconds
     inactivityDuration = 60 * 60 * 24 * 7, // 7 days in seconds
-
   }: StatefulSessionStoreOptions) {
     super({
       secret,
       rolling,
       absoluteDuration,
-      inactivityDuration
+      inactivityDuration,
     })
 
     this.store = store
@@ -74,28 +72,41 @@ export class StatefulSessionStore extends AbstractSessionStore {
       return null
     }
 
-    const { id } = await cookies.decrypt<SessionCookieValue>(cookieValue, this.secret)
+    const { id } = await cookies.decrypt<SessionCookieValue>(
+      cookieValue,
+      this.secret
+    )
 
     return this.store.get(id)
   }
 
-  async set(reqCookies: cookies.RequestCookies, resCookies: cookies.ResponseCookies, session: SessionData) {
+  async set(
+    reqCookies: cookies.RequestCookies,
+    resCookies: cookies.ResponseCookies,
+    session: SessionData
+  ) {
     // TODO: ensure we prevent session fixation here
 
     // check if a session already exists. If so, maintain the existing session ID
     let sessionId = null
     const cookieValue = reqCookies.get(this.SESSION_COOKIE_NAME)?.value
     if (cookieValue) {
-      ({ id: sessionId } = await cookies.decrypt<SessionCookieValue>(cookieValue, this.secret))
+      ;({ id: sessionId } = await cookies.decrypt<SessionCookieValue>(
+        cookieValue,
+        this.secret
+      ))
     }
 
     if (!sessionId) {
       sessionId = genId()
     }
 
-    const jwe = await cookies.encrypt({
-      id: sessionId
-    }, this.secret)
+    const jwe = await cookies.encrypt(
+      {
+        id: sessionId,
+      },
+      this.secret
+    )
     // if the `iat` claim is present, use it to compute the `maxAge`
     const iat = session.iat ?? this.epoch()
     const maxAge = this.calculateMaxAge(iat)
@@ -107,14 +118,20 @@ export class StatefulSessionStore extends AbstractSessionStore {
     await this.store.set(sessionId, session)
   }
 
-  async delete(reqCookies: cookies.RequestCookies, resCookies: cookies.ResponseCookies) {
+  async delete(
+    reqCookies: cookies.RequestCookies,
+    resCookies: cookies.ResponseCookies
+  ) {
     const cookieValue = reqCookies.get(this.SESSION_COOKIE_NAME)?.value
 
     if (!cookieValue) {
       return
     }
 
-    const { id } = await cookies.decrypt<SessionCookieValue>(cookieValue, this.secret)
+    const { id } = await cookies.decrypt<SessionCookieValue>(
+      cookieValue,
+      this.secret
+    )
 
     resCookies.delete(this.SESSION_COOKIE_NAME)
     await this.store.delete(id)

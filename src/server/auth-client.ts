@@ -1,14 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server"
 import * as oauth from "oauth4webapi"
 
-import { TokenSet, TokenStore } from "./token-store"
+import {
+  AbstractSessionStore,
+  SessionData,
+  TokenSet,
+} from "./session/abstract-session-store"
 import { TransactionState, TransactionStore } from "./transaction-store"
 import { filterClaims } from "./user"
-import { AbstractSessionStore, SessionData } from "./session/abstract-session-store"
 
 export type BeforeSessionSavedHook = (user: {
   [key: string]: any
-}) => Promise<Pick<SessionData, "user" | "data">>
+}) => Promise<Pick<SessionData, "user" | "metadata">>
 
 // params passed to the /authorize endpoint that cannot be overwritten
 const INTERNAL_AUTHORIZE_PARAMS = [
@@ -24,7 +27,6 @@ const INTERNAL_AUTHORIZE_PARAMS = [
 export interface AuthClientOptions {
   transactionStore: TransactionStore
   sessionStore: AbstractSessionStore
-  tokenStore: TokenStore
 
   domain: string
   clientId: string
@@ -42,7 +44,6 @@ export interface AuthClientOptions {
 export class AuthClient {
   private transactionStore: TransactionStore
   private sessionStore: AbstractSessionStore
-  private tokenStore: TokenStore
 
   private clientMetadata: oauth.Client
   private issuer: string
@@ -59,7 +60,6 @@ export class AuthClient {
     // stores
     this.transactionStore = options.transactionStore
     this.sessionStore = options.sessionStore
-    this.tokenStore = options.tokenStore
 
     // authorization server
     this.issuer = `https://${options.domain}`
@@ -97,19 +97,18 @@ export class AuthClient {
       // no auth handler found, simply touch the sessions
       const res = NextResponse.next()
       const session = await this.sessionStore.get(req.cookies)
-      const tokenSet = await this.tokenStore.get(req.cookies)
 
-      // refresh the access token, if necessary, passing the existing `iat` claim
-      // to update the cookie's `maxAge`
-      if (tokenSet) {
-        const updatedTokenSet = await this.getTokenSet(tokenSet)
-        await this.tokenStore.save(res.cookies, updatedTokenSet)
-      }
-
-      // we pass the existing session (containing an `iat` claim) to the save method
-      // which will update the cookie's `maxAge` property based on the `iat` time
       if (session) {
-        await this.sessionStore.set(req.cookies, res.cookies, session)
+        // refresh the access token, if necessary, passing the existing `iat` claim
+        // to update the cookie's `maxAge`
+        const updatedTokenSet = await this.getTokenSet(session.tokenSet)
+
+        // we pass the existing session (containing an `iat` claim) to the set method
+        // which will update the cookie's `maxAge` property based on the `iat` time
+        await this.sessionStore.set(req.cookies, res.cookies, {
+          ...session,
+          tokenSet: updatedTokenSet,
+        })
       }
 
       return res
@@ -191,7 +190,6 @@ export class AuthClient {
 
     const res = NextResponse.redirect(url)
     await this.sessionStore.delete(req.cookies, res.cookies)
-    await this.tokenStore.delete(res.cookies)
 
     return res
   }
@@ -250,24 +248,24 @@ export class AuthClient {
     const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
     let session: SessionData = {
       user: filterClaims(idTokenClaims),
-      data: {},
+      metadata: {},
+      tokenSet: {
+        accessToken: oidcRes.access_token,
+        refreshToken: oidcRes.refresh_token,
+        expiresAt: Math.floor(Date.now() / 1000) + Number(oidcRes.expires_in),
+      },
       internal: {
         sid: idTokenClaims.sid as string,
       },
     }
 
     if (this.beforeSessionSaved) {
-      const { user, data } = await this.beforeSessionSaved(idTokenClaims)
+      const { user, metadata } = await this.beforeSessionSaved(idTokenClaims)
       session.user = user || {}
-      session.data = data || {}
+      session.metadata = metadata || {}
     }
 
     await this.sessionStore.set(req.cookies, res.cookies, session)
-    await this.tokenStore.save(res.cookies, {
-      accessToken: oidcRes.access_token,
-      refreshToken: oidcRes.refresh_token,
-      expiresAt: Math.floor(Date.now() / 1000) + Number(oidcRes.expires_in),
-    })
 
     return res
   }
@@ -285,47 +283,67 @@ export class AuthClient {
   }
 
   async handleAccessToken(req: NextRequest) {
-    const tokenSet = await this.tokenStore.get(req.cookies)
     const session = await this.sessionStore.get(req.cookies)
 
-    if (!tokenSet || !session) {
-      return NextResponse.json({
-        error: "Token set does not exist or you are not authenticated."
-      }, {
-        status: 401,
-      })
+    if (!session) {
+      return NextResponse.json(
+        {
+          error: "You are not authenticated.",
+        },
+        {
+          status: 401,
+        }
+      )
     }
 
-    const updatedTokenSet = await this.getTokenSet(tokenSet)
+    const updatedTokenSet = await this.getTokenSet(session.tokenSet)
 
     const res = NextResponse.json({
       token: updatedTokenSet.accessToken,
-      expires_at: updatedTokenSet.expiresAt
+      expires_at: updatedTokenSet.expiresAt,
     })
 
-    await this.sessionStore.set(req.cookies, res.cookies, session)
-    await this.tokenStore.save(res.cookies, updatedTokenSet)
+    await this.sessionStore.set(req.cookies, res.cookies, {
+      ...session,
+      tokenSet: updatedTokenSet,
+    })
 
     return res
   }
 
+  /**
+   * getTokenSet returns a valid token set. If the access token has expired, it will attempt to
+   * refresh it using the refresh token, if available.
+   */
   async getTokenSet(tokenSet: TokenSet): Promise<TokenSet> {
     // the access token has expired but we do not have a refresh token
-    if (!tokenSet.refreshToken && tokenSet.expiresAt < (Date.now() / 1000)) {
-      throw new Error("The access token has expired and a refresh token was not granted.")
+    if (!tokenSet.refreshToken && tokenSet.expiresAt < Date.now() / 1000) {
+      throw new Error(
+        "The access token has expired and a refresh token was not granted."
+      )
     }
 
     // the access token has expired and we have a refresh token
-    if (tokenSet.refreshToken && tokenSet.expiresAt < (Date.now() / 1000)) {
-      const authorizationServerMetadata = await this.discoverAuthorizationServerMetadata()
-      const refreshTokenRes = await oauth.refreshTokenGrantRequest(authorizationServerMetadata, this.clientMetadata, tokenSet.refreshToken)
-      const oauthRes = await oauth.processRefreshTokenResponse(authorizationServerMetadata, this.clientMetadata, refreshTokenRes)
+    if (tokenSet.refreshToken && tokenSet.expiresAt < Date.now() / 1000) {
+      const authorizationServerMetadata =
+        await this.discoverAuthorizationServerMetadata()
+      const refreshTokenRes = await oauth.refreshTokenGrantRequest(
+        authorizationServerMetadata,
+        this.clientMetadata,
+        tokenSet.refreshToken
+      )
+      const oauthRes = await oauth.processRefreshTokenResponse(
+        authorizationServerMetadata,
+        this.clientMetadata,
+        refreshTokenRes
+      )
 
       if (oauth.isOAuth2Error(oauthRes)) {
         throw new Error("OAuth2 error")
       }
 
-      const accessTokenExpiresAt = Math.floor(Date.now() / 1000) + Number(oauthRes.expires_in)
+      const accessTokenExpiresAt =
+        Math.floor(Date.now() / 1000) + Number(oauthRes.expires_in)
 
       let updatedTokenSet = {
         ...tokenSet, // contains the existing `iat` claim to maintain the session lifetime
