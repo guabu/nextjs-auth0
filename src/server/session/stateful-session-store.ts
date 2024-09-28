@@ -35,8 +35,7 @@ interface StatefulSessionStoreOptions {
   store: SessionStore
 }
 
-// TODO: revise this
-const genId = () => {
+const generateId = () => {
   const bytes = new Uint8Array(16)
   crypto.getRandomValues(bytes)
   return Array.from(bytes)
@@ -85,20 +84,28 @@ export class StatefulSessionStore extends AbstractSessionStore {
     resCookies: cookies.ResponseCookies,
     session: SessionData
   ) {
-    // TODO: ensure we prevent session fixation here
-
     // check if a session already exists. If so, maintain the existing session ID
     let sessionId = null
+    let isNewSession = true
     const cookieValue = reqCookies.get(this.SESSION_COOKIE_NAME)?.value
     if (cookieValue) {
-      ;({ id: sessionId } = await cookies.decrypt<SessionCookieValue>(
+      const sessionCookie = await cookies.decrypt<SessionCookieValue>(
         cookieValue,
         this.secret
-      ))
+      )
+      sessionId = sessionCookie.id
+      isNewSession = !sessionCookie.iat
+    }
+
+    // if this is a new session created by a new login we need to remove the old session
+    // from the store and regenerate the session ID to prevent session fixation.
+    if (sessionId && isNewSession) {
+      await this.store.delete(sessionId)
+      sessionId = generateId()
     }
 
     if (!sessionId) {
-      sessionId = genId()
+      sessionId = generateId()
     }
 
     const jwe = await cookies.encrypt(
