@@ -1,7 +1,7 @@
 import * as cookies from "../cookies"
 import { AbstractSessionStore, SessionData } from "./abstract-session-store"
 
-// the value of the session cookie containing a unique session ID to identify
+// the value of the stateful session cookie containing a unique session ID to identify
 // the current session
 interface SessionCookieValue {
   id: string
