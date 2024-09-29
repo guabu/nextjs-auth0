@@ -139,7 +139,7 @@ export class Auth0Client {
    * This method can be used in Server Actions, Route Handlers, and RSCs in the App Router.
    */
   async getSession(): Promise<SessionData | null> {
-    return this.sessionStore.get(cookies())
+    return this.sessionStore.get(await cookies())
   }
 
   /**
@@ -147,13 +147,13 @@ export class Auth0Client {
    * This method can be used in Server Actions and Route Handlers.
    */
   async updateSessionMetadata(metadata: SessionMetadata) {
-    const session = await this.sessionStore.get(cookies())
+    const session = await this.sessionStore.get(await cookies())
 
     if (!session) {
       throw new Error("No session found.")
     }
 
-    await this.sessionStore.set(cookies(), cookies(), {
+    await this.sessionStore.set(await cookies(), await cookies(), {
       ...session,
       metadata,
     })
@@ -163,7 +163,7 @@ export class Auth0Client {
    * getAccessToken returns the access token.
    */
   async getAccessToken() {
-    const session = await this.sessionStore.get(cookies())
+    const session = await this.sessionStore.get(await cookies())
 
     if (!session) {
       throw new Error("You are not authenticated.")
