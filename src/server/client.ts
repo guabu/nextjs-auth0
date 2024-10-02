@@ -1,10 +1,12 @@
 import { cookies } from "next/headers"
+import { NextRequest } from "next/server"
+import { NextApiRequest } from "next/types"
 
 import { AuthClient, BeforeSessionSavedHook } from "./auth-client"
+import { RequestCookies } from "./cookies"
 import {
   AbstractSessionStore,
   SessionData,
-  SessionMetadata,
 } from "./session/abstract-session-store"
 import {
   SessionStore,
@@ -32,6 +34,8 @@ interface Auth0ClientOptions {
   // provide a session store to persist sessions in your own data store
   sessionStore?: SessionStore
 }
+
+type PagesRouterRequest = Pick<NextApiRequest, "headers">
 
 export class Auth0Client {
   private transactionStore: TransactionStore
@@ -138,40 +142,74 @@ export class Auth0Client {
    * getSession returns the session data for the current request.
    * This method can be used in Server Actions, Route Handlers, and RSCs in the App Router.
    */
-  async getSession(): Promise<SessionData | null> {
+  async getSession(): Promise<SessionData | null>
+
+  /**
+   * getSession returns the session data for the current request.
+   * This method can be used in the Pages Router.
+   */
+  async getSession(req: PagesRouterRequest): Promise<SessionData | null>
+
+  /**
+   * getSession returns the session data for the current request.
+   */
+  async getSession(req?: PagesRouterRequest): Promise<SessionData | null> {
+    if (req) {
+      return this.sessionStore.get(this.createRequestCookies(req))
+    }
+
     return this.sessionStore.get(await cookies())
   }
 
   /**
-   * updateSessionMetadata updates the current session's metadata.
+   * getAccessToken returns the access token.
    * This method can be used in Server Actions and Route Handlers.
    */
-  async updateSessionMetadata(metadata: SessionMetadata) {
-    const session = await this.sessionStore.get(await cookies())
+  async getAccessToken(): Promise<{ token: string; expiresAt: number }>
 
-    if (!session) {
-      throw new Error("No session found.")
-    }
-
-    await this.sessionStore.set(await cookies(), await cookies(), {
-      ...session,
-      metadata,
-    })
-  }
+  /**
+   * getAccessToken returns the access token.
+   * This method can be used in the Pages router.
+   */
+  async getAccessToken(
+    req: PagesRouterRequest
+  ): Promise<{ token: string; expiresAt: number }>
 
   /**
    * getAccessToken returns the access token.
    */
-  async getAccessToken() {
-    const session = await this.sessionStore.get(await cookies())
+  async getAccessToken(req?: PagesRouterRequest) {
+    let session: SessionData | null = null
+
+    if (req) {
+      session = await this.sessionStore.get(this.createRequestCookies(req))
+    } else {
+      session = await this.sessionStore.get(await cookies())
+    }
 
     if (!session) {
-      throw new Error("You are not authenticated.")
+      throw new Error("No session found.")
     }
 
     return {
       token: session.tokenSet.accessToken,
       expiresAt: session.tokenSet.expiresAt,
     }
+  }
+
+  private createRequestCookies(req: PagesRouterRequest) {
+    const headers = new Headers()
+
+    for (const key in req.headers) {
+      if (Array.isArray(req.headers[key])) {
+        for (const value of req.headers[key]) {
+          headers.append(key, value)
+        }
+      } else {
+        headers.append(key, req.headers[key] ?? "")
+      }
+    }
+
+    return new RequestCookies(headers)
   }
 }

@@ -21,7 +21,7 @@ export class StatelessSessionStore extends AbstractSessionStore {
       secret,
       rolling,
       absoluteDuration,
-      inactivityDuration
+      inactivityDuration,
     })
   }
 
@@ -39,7 +39,11 @@ export class StatelessSessionStore extends AbstractSessionStore {
    * save adds the encrypted session cookie as a `Set-Cookie` header. If the `iat` property
    * is pressent on the session, then it will be used to compute the `maxAge` cookie value.
    */
-  async set(_reqCookies: cookies.RequestCookies, resCookies: cookies.ResponseCookies, session: SessionData) {
+  async set(
+    _reqCookies: cookies.RequestCookies,
+    resCookies: cookies.ResponseCookies,
+    session: SessionData
+  ) {
     const jwe = await cookies.encrypt(session, this.secret)
     // if the `iat` claim is present, use it to compute the `maxAge`
     const iat = session.iat ?? this.epoch()
@@ -51,7 +55,10 @@ export class StatelessSessionStore extends AbstractSessionStore {
     })
   }
 
-  async delete(_reqCookies: cookies.RequestCookies, resCookies: cookies.ResponseCookies) {
+  async delete(
+    _reqCookies: cookies.RequestCookies,
+    resCookies: cookies.ResponseCookies
+  ) {
     resCookies.delete(this.SESSION_COOKIE_NAME)
   }
 }

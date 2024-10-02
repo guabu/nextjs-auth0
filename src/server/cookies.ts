@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { RequestCookies, ResponseCookies } from "@edge-runtime/cookies"
 import hkdf from "@panva/hkdf"
 import * as jose from "jose"
 
@@ -47,5 +47,10 @@ export interface CookieOptions {
   maxAge?: number
 }
 
-export type RequestCookies = Pick<NextRequest["cookies"], "get">
-export type ResponseCookies = Pick<NextResponse["cookies"], "set" | "delete">
+export type ReadonlyRequestCookies = Omit<
+  RequestCookies,
+  "set" | "clear" | "delete"
+> &
+  Pick<ResponseCookies, "set" | "delete">
+export { ResponseCookies }
+export { RequestCookies }

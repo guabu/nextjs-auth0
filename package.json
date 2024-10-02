@@ -46,6 +46,7 @@
     "./server": "./dist/server/index.js"
   },
   "dependencies": {
+    "@edge-runtime/cookies": "^5.0.0",
     "@panva/hkdf": "^1.2.1",
     "jose": "^5.8.0",
     "oauth4webapi": "^2.12.0",
