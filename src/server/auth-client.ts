@@ -11,7 +11,7 @@ import { filterClaims } from "./user"
 
 export type BeforeSessionSavedHook = (user: {
   [key: string]: any
-}) => Promise<Pick<SessionData, "user" | "metadata">>
+}) => Promise<Pick<SessionData, "user">>
 
 // params passed to the /authorize endpoint that cannot be overwritten
 const INTERNAL_AUTHORIZE_PARAMS = [
@@ -250,7 +250,6 @@ export class AuthClient {
     const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
     let session: SessionData = {
       user: filterClaims(idTokenClaims),
-      metadata: {},
       tokenSet: {
         accessToken: oidcRes.access_token,
         refreshToken: oidcRes.refresh_token,
@@ -262,9 +261,8 @@ export class AuthClient {
     }
 
     if (this.beforeSessionSaved) {
-      const { user, metadata } = await this.beforeSessionSaved(idTokenClaims)
+      const { user } = await this.beforeSessionSaved(idTokenClaims)
       session.user = user || {}
-      session.metadata = metadata || {}
     }
 
     await this.sessionStore.set(req.cookies, res.cookies, session)

@@ -1,11 +1,11 @@
 import type * as jose from "jose"
 
-import * as cookies from "../cookies"
+import {
+  ReadonlyRequestCookies,
+  RequestCookies,
+  ResponseCookies,
+} from "../cookies"
 import { User } from "../user"
-
-export interface SessionMetadata {
-  [key: string]: any
-}
 
 export interface TokenSet {
   accessToken: string
@@ -15,8 +15,6 @@ export interface TokenSet {
 
 export interface SessionData extends jose.JWTPayload {
   user: User
-  // custom session data set by the user
-  metadata: SessionMetadata
   tokenSet: TokenSet
   internal: {
     // the session ID from the authorization server
@@ -62,21 +60,23 @@ export abstract class AbstractSessionStore {
     this.inactivityDuration = inactivityDuration
   }
 
-  abstract get(reqCookies: cookies.RequestCookies): Promise<SessionData | null>
+  abstract get(
+    reqCookies: RequestCookies | ReadonlyRequestCookies
+  ): Promise<SessionData | null>
 
   /**
    * save adds the encrypted session cookie as a `Set-Cookie` header. If the `iat` property
    * is present on the session, then it will be used to compute the `maxAge` cookie value.
    */
   abstract set(
-    reqCookies: cookies.RequestCookies,
-    resCookies: cookies.ResponseCookies,
+    reqCookies: RequestCookies | ReadonlyRequestCookies,
+    resCookies: ResponseCookies,
     session: SessionData
   ): Promise<void>
 
   abstract delete(
-    reqCookies: cookies.RequestCookies,
-    resCookies: cookies.ResponseCookies
+    reqCookies: RequestCookies | ReadonlyRequestCookies,
+    resCookies: ResponseCookies
   ): Promise<void>
 
   /**
