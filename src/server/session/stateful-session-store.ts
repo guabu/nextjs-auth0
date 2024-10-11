@@ -140,7 +140,7 @@ export class StatefulSessionStore extends AbstractSessionStore {
       this.secret
     )
 
-    resCookies.delete(this.SESSION_COOKIE_NAME)
+    await resCookies.delete(this.SESSION_COOKIE_NAME)
     await this.store.delete(id)
   }
 }

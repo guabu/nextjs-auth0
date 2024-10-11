@@ -71,6 +71,6 @@ export class TransactionStore {
   }
 
   async delete(resCookies: cookies.ResponseCookies, state: string) {
-    resCookies.delete(this.getTransactionCookieName(state))
+    await resCookies.delete(this.getTransactionCookieName(state))
   }
 }

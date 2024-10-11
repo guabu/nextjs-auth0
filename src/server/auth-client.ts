@@ -19,15 +19,15 @@ import {
 import { TransactionState, TransactionStore } from "./transaction-store"
 import { filterClaims } from "./user"
 
-export type BeforeSessionSavedHook = (user: {
-  [key: string]: any
-}) => Promise<Pick<SessionData, "user">>
+export type BeforeSessionSavedHook = (session: SessionData) => Promise<SessionData>
 
+type OnCallbackContext = {
+  returnTo?: string
+}
 export type OnCallbackHook = (
   error: SdkError | null,
-  req: NextRequest,
-  res: NextResponse,
-  session: SessionData | null
+  ctx: OnCallbackContext,
+  session: SessionData | null,
 ) => Promise<NextResponse>
 
 // params passed to the /authorize endpoint that cannot be overwritten
@@ -245,24 +245,23 @@ export class AuthClient {
   async handleCallback(req: NextRequest): Promise<NextResponse> {
     const state = req.nextUrl.searchParams.get("state")
     if (!state) {
-      return [new MissingStateError(), null]
+      return this.onCallback(new MissingStateError(), {}, null)
     }
 
     const transactionState = await this.transactionStore.get(req.cookies, state)
     if (!transactionState) {
-      return [new MissingStateError(), null]
+      return this.onCallback(new MissingStateError(), {}, null)
     }
 
-    const res = NextResponse.redirect(
-      new URL(transactionState.returnTo, this.appBaseUrl)
-    )
-    this.transactionStore.delete(res.cookies, state)
+    const onCallbackCtx: OnCallbackContext = {
+      returnTo: transactionState.returnTo
+    }
 
     const [discoveryError, authorizationServerMetadata] =
       await this.discoverAuthorizationServerMetadata()
 
     if (discoveryError) {
-      return this.onCallback(discoveryError, req, res, null)
+      return this.onCallback(discoveryError, onCallbackCtx, null)
     }
 
     const codeGrantParams = oauth.validateAuthResponse(
@@ -280,8 +279,7 @@ export class AuthClient {
             message: codeGrantParams.error_description,
           }),
         }),
-        req,
-        res,
+        onCallbackCtx,
         null
       )
     }
@@ -310,15 +308,14 @@ export class AuthClient {
             message: oidcRes.error_description,
           }),
         }),
-        req,
-        res,
+        onCallbackCtx,
         null
       )
     }
 
     const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
     let session: SessionData = {
-      user: filterClaims(idTokenClaims),
+      user: idTokenClaims,
       tokenSet: {
         accessToken: oidcRes.access_token,
         refreshToken: oidcRes.refresh_token,
@@ -329,13 +326,17 @@ export class AuthClient {
       },
     }
 
+    const res = await this.onCallback(null, onCallbackCtx, session)
+
     if (this.beforeSessionSaved) {
-      const { user } = await this.beforeSessionSaved(idTokenClaims)
+      const { user } = await this.beforeSessionSaved(session)
       session.user = user || {}
+    } else {
+      session.user = filterClaims(idTokenClaims)
     }
 
-    await this.onCallback(null, req, res, session)
     await this.sessionStore.set(req.cookies, res.cookies, session)
+    await this.transactionStore.delete(res.cookies, state)
 
     return res
   }
@@ -483,13 +484,16 @@ export class AuthClient {
 
   private async defaultOnCallback(
     error: SdkError | null,
-    _req: NextRequest,
-    res: NextResponse,
-    _session: SessionData | null
+    ctx: OnCallbackContext,
+    _session: SessionData | null,
   ) {
     if (error) {
       return new NextResponse(error.message)
     }
+
+    const res = NextResponse.redirect(
+      new URL(ctx.returnTo || "/", this.appBaseUrl)
+    )
 
     return res
   }
