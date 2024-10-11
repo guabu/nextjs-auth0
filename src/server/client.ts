@@ -2,7 +2,11 @@ import { cookies } from "next/headers"
 import { NextRequest } from "next/server"
 import { NextApiRequest } from "next/types"
 
-import { AuthClient, BeforeSessionSavedHook } from "./auth-client"
+import {
+  AuthClient,
+  BeforeSessionSavedHook,
+  OnCallbackHook,
+} from "./auth-client"
 import { RequestCookies } from "./cookies"
 import {
   AbstractSessionStore,
@@ -30,6 +34,7 @@ interface Auth0ClientOptions {
 
   // hooks
   beforeSessionSaved?: BeforeSessionSavedHook
+  onCallback?: OnCallbackHook
 
   // provide a session store to persist sessions in your own data store
   sessionStore?: SessionStore
@@ -131,6 +136,7 @@ export class Auth0Client {
       signInReturnToPath,
 
       beforeSessionSaved: options.beforeSessionSaved,
+      onCallback: options.onCallback,
     })
   }
 
@@ -188,7 +194,7 @@ export class Auth0Client {
     }
 
     if (!session) {
-      throw new Error("No session found.")
+      return null
     }
 
     return {

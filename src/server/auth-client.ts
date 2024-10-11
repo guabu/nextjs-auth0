@@ -2,6 +2,16 @@ import { NextResponse, type NextRequest } from "next/server"
 import * as oauth from "oauth4webapi"
 
 import {
+  AuthorizationCodeGrantError,
+  AuthorizationError,
+  DiscoveryError,
+  MissingRefreshToken,
+  MissingStateError,
+  OAuth2Error,
+  RefreshTokenGrantError,
+  SdkError,
+} from "../errors"
+import {
   AbstractSessionStore,
   SessionData,
   TokenSet,
@@ -9,9 +19,16 @@ import {
 import { TransactionState, TransactionStore } from "./transaction-store"
 import { filterClaims } from "./user"
 
-export type BeforeSessionSavedHook = (user: {
-  [key: string]: any
-}) => Promise<Pick<SessionData, "user">>
+export type BeforeSessionSavedHook = (session: SessionData) => Promise<SessionData>
+
+type OnCallbackContext = {
+  returnTo?: string
+}
+export type OnCallbackHook = (
+  error: SdkError | null,
+  ctx: OnCallbackContext,
+  session: SessionData | null,
+) => Promise<NextResponse>
 
 // params passed to the /authorize endpoint that cannot be overwritten
 const INTERNAL_AUTHORIZE_PARAMS = [
@@ -39,6 +56,7 @@ export interface AuthClientOptions {
   signInReturnToPath: string
 
   beforeSessionSaved?: BeforeSessionSavedHook
+  onCallback?: OnCallbackHook
 }
 
 export class AuthClient {
@@ -55,6 +73,7 @@ export class AuthClient {
   private signInReturnToPath: string
 
   private beforeSessionSaved?: BeforeSessionSavedHook
+  private onCallback: OnCallbackHook
 
   constructor(options: AuthClientOptions) {
     // stores
@@ -77,9 +96,10 @@ export class AuthClient {
 
     // hooks
     this.beforeSessionSaved = options.beforeSessionSaved
+    this.onCallback = options.onCallback || this.defaultOnCallback
   }
 
-  async handler(req: NextRequest) {
+  async handler(req: NextRequest): Promise<NextResponse> {
     const { pathname } = req.nextUrl
     const method = req.method
 
@@ -103,7 +123,15 @@ export class AuthClient {
       if (session) {
         // refresh the access token, if necessary, passing the existing `iat` claim
         // to update the cookie's `maxAge`
-        const updatedTokenSet = await this.getTokenSet(session.tokenSet)
+        const [error, updatedTokenSet] = await this.getTokenSet(
+          session.tokenSet
+        )
+
+        if (error) {
+          // TODO: accept a logger in the constructor to log these errors
+          console.error(`Failed to fetch token set: ${error.message}`)
+          return res
+        }
 
         // we pass the existing session (containing an `iat` claim) to the set method
         // which will update the cookie's `maxAge` property based on the `iat` time
@@ -117,9 +145,18 @@ export class AuthClient {
     }
   }
 
-  async handleLogin(req: NextRequest) {
-    const authorizationServerMetadata =
+  async handleLogin(req: NextRequest): Promise<NextResponse> {
+    const [discoveryError, authorizationServerMetadata] =
       await this.discoverAuthorizationServerMetadata()
+
+    if (discoveryError) {
+      return new NextResponse(
+        "An error occured while trying to initiate the login request.",
+        {
+          status: 500,
+        }
+      )
+    }
 
     const returnTo =
       req.nextUrl.searchParams.get("returnTo") || this.signInReturnToPath
@@ -177,10 +214,19 @@ export class AuthClient {
     return res
   }
 
-  async handleLogout(req: NextRequest) {
+  async handleLogout(req: NextRequest): Promise<NextResponse> {
     const session = await this.sessionStore.get(req.cookies)
-    const authorizationServerMetadata =
+    const [discoveryError, authorizationServerMetadata] =
       await this.discoverAuthorizationServerMetadata()
+
+    if (discoveryError) {
+      return new NextResponse(
+        "An error occured while trying to initiate the logout request.",
+        {
+          status: 500,
+        }
+      )
+    }
 
     const url = new URL(authorizationServerMetadata.end_session_endpoint!)
     url.searchParams.set("client_id", this.clientMetadata.client_id)
@@ -196,24 +242,27 @@ export class AuthClient {
     return res
   }
 
-  async handleCallback(req: NextRequest) {
+  async handleCallback(req: NextRequest): Promise<NextResponse> {
     const state = req.nextUrl.searchParams.get("state")
     if (!state) {
-      throw new Error("The state parameter is missing.")
+      return this.onCallback(new MissingStateError(), {}, null)
     }
 
     const transactionState = await this.transactionStore.get(req.cookies, state)
     if (!transactionState) {
-      throw new Error("The transaction state could not be found.")
+      return this.onCallback(new MissingStateError(), {}, null)
     }
 
-    const res = NextResponse.redirect(
-      new URL(transactionState.returnTo, this.appBaseUrl)
-    )
-    this.transactionStore.delete(res.cookies, state)
+    const onCallbackCtx: OnCallbackContext = {
+      returnTo: transactionState.returnTo
+    }
 
-    const authorizationServerMetadata =
+    const [discoveryError, authorizationServerMetadata] =
       await this.discoverAuthorizationServerMetadata()
+
+    if (discoveryError) {
+      return this.onCallback(discoveryError, onCallbackCtx, null)
+    }
 
     const codeGrantParams = oauth.validateAuthResponse(
       authorizationServerMetadata,
@@ -223,8 +272,16 @@ export class AuthClient {
     )
 
     if (oauth.isOAuth2Error(codeGrantParams)) {
-      // TODO: we should sanitize and expose this error to the developer
-      throw new Error("OAuth2 error")
+      return this.onCallback(
+        new AuthorizationError({
+          cause: new OAuth2Error({
+            code: codeGrantParams.error,
+            message: codeGrantParams.error_description,
+          }),
+        }),
+        onCallbackCtx,
+        null
+      )
     }
 
     const codeGrantResponse = await oauth.authorizationCodeGrantRequest(
@@ -244,12 +301,21 @@ export class AuthClient {
     )
 
     if (oauth.isOAuth2Error(oidcRes)) {
-      throw new Error("OAuth2 error")
+      return this.onCallback(
+        new AuthorizationCodeGrantError({
+          cause: new OAuth2Error({
+            code: oidcRes.error,
+            message: oidcRes.error_description,
+          }),
+        }),
+        onCallbackCtx,
+        null
+      )
     }
 
     const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
     let session: SessionData = {
-      user: filterClaims(idTokenClaims),
+      user: idTokenClaims,
       tokenSet: {
         accessToken: oidcRes.access_token,
         refreshToken: oidcRes.refresh_token,
@@ -260,17 +326,22 @@ export class AuthClient {
       },
     }
 
+    const res = await this.onCallback(null, onCallbackCtx, session)
+
     if (this.beforeSessionSaved) {
-      const { user } = await this.beforeSessionSaved(idTokenClaims)
+      const { user } = await this.beforeSessionSaved(session)
       session.user = user || {}
+    } else {
+      session.user = filterClaims(idTokenClaims)
     }
 
     await this.sessionStore.set(req.cookies, res.cookies, session)
+    await this.transactionStore.delete(res.cookies, state)
 
     return res
   }
 
-  async handleProfile(req: NextRequest) {
+  async handleProfile(req: NextRequest): Promise<NextResponse> {
     const session = await this.sessionStore.get(req.cookies)
 
     if (!session) {
@@ -282,7 +353,7 @@ export class AuthClient {
     return NextResponse.json(session?.user)
   }
 
-  async handleAccessToken(req: NextRequest) {
+  async handleAccessToken(req: NextRequest): Promise<NextResponse> {
     const session = await this.sessionStore.get(req.cookies)
 
     if (!session) {
@@ -296,7 +367,19 @@ export class AuthClient {
       )
     }
 
-    const updatedTokenSet = await this.getTokenSet(session.tokenSet)
+    const [error, updatedTokenSet] = await this.getTokenSet(session.tokenSet)
+
+    if (error) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          error_code: error.code,
+        },
+        {
+          status: 401,
+        }
+      )
+    }
 
     const res = NextResponse.json({
       token: updatedTokenSet.accessToken,
@@ -315,18 +398,23 @@ export class AuthClient {
    * getTokenSet returns a valid token set. If the access token has expired, it will attempt to
    * refresh it using the refresh token, if available.
    */
-  async getTokenSet(tokenSet: TokenSet): Promise<TokenSet> {
+  async getTokenSet(
+    tokenSet: TokenSet
+  ): Promise<[null, TokenSet] | [SdkError, null]> {
     // the access token has expired but we do not have a refresh token
     if (!tokenSet.refreshToken && tokenSet.expiresAt < Date.now() / 1000) {
-      throw new Error(
-        "The access token has expired and a refresh token was not granted."
-      )
+      return [new MissingRefreshToken(), null]
     }
 
     // the access token has expired and we have a refresh token
     if (tokenSet.refreshToken && tokenSet.expiresAt < Date.now() / 1000) {
-      const authorizationServerMetadata =
+      const [discoveryError, authorizationServerMetadata] =
         await this.discoverAuthorizationServerMetadata()
+
+      if (discoveryError) {
+        return [discoveryError, null]
+      }
+
       const refreshTokenRes = await oauth.refreshTokenGrantRequest(
         authorizationServerMetadata,
         this.clientMetadata,
@@ -339,7 +427,15 @@ export class AuthClient {
       )
 
       if (oauth.isOAuth2Error(oauthRes)) {
-        throw new Error("OAuth2 error")
+        return [
+          new RefreshTokenGrantError({
+            cause: new OAuth2Error({
+              code: oauthRes.error,
+              message: oauthRes.error_description,
+            }),
+          }),
+          null,
+        ]
       }
 
       const accessTokenExpiresAt =
@@ -359,13 +455,15 @@ export class AuthClient {
         updatedTokenSet.refreshToken = tokenSet.refreshToken
       }
 
-      return updatedTokenSet
+      return [null, updatedTokenSet]
     }
 
-    return tokenSet
+    return [null, tokenSet]
   }
 
-  private async discoverAuthorizationServerMetadata() {
+  private async discoverAuthorizationServerMetadata(): Promise<
+    [null, oauth.AuthorizationServer] | [SdkError, null]
+  > {
     const issuer = new URL(this.issuer)
 
     try {
@@ -373,9 +471,30 @@ export class AuthClient {
         .discoveryRequest(issuer)
         .then((response) => oauth.processDiscoveryResponse(issuer, response))
 
-      return authorizationServerMetadata
+      return [null, authorizationServerMetadata]
     } catch (e) {
-      throw new Error("Failed to discover the authorization server.")
+      return [
+        new DiscoveryError(
+          "Discovery failed for the OpenID Connect configuration."
+        ),
+        null,
+      ]
     }
+  }
+
+  private async defaultOnCallback(
+    error: SdkError | null,
+    ctx: OnCallbackContext,
+    _session: SessionData | null,
+  ) {
+    if (error) {
+      return new NextResponse(error.message)
+    }
+
+    const res = NextResponse.redirect(
+      new URL(ctx.returnTo || "/", this.appBaseUrl)
+    )
+
+    return res
   }
 }
