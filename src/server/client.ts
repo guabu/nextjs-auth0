@@ -47,7 +47,7 @@ export class Auth0Client {
   private sessionStore: AbstractSessionStore
   private authClient: AuthClient
 
-  constructor(options: Auth0ClientOptions) {
+  constructor(options: Auth0ClientOptions = {}) {
     const domain = options.domain || process.env.AUTH0_DOMAIN
     const clientId = options.clientId || process.env.AUTH0_CLIENT_ID
     const clientSecret = options.clientSecret || process.env.AUTH0_CLIENT_SECRET
@@ -114,12 +114,12 @@ export class Auth0Client {
 
     this.sessionStore = options.sessionStore
       ? new StatefulSessionStore({
-          secret,
-          store: options.sessionStore,
-        })
+        secret,
+        store: options.sessionStore,
+      })
       : new StatelessSessionStore({
-          secret,
-        })
+        secret,
+      })
 
     this.authClient = new AuthClient({
       transactionStore: this.transactionStore,
