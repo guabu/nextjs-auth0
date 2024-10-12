@@ -228,7 +228,17 @@ export class AuthClient {
       )
     }
 
-    const url = new URL(authorizationServerMetadata.end_session_endpoint!)
+    if (!authorizationServerMetadata.end_session_endpoint) {
+      console.error("The Auth0 client does not have RP-initiated logout enabled. Learn how to enable it here: https://auth0.com/docs/authenticate/login/logout/log-users-out-of-auth0#enable-endpoint-discovery")
+      return new NextResponse(
+        "An error occured while trying to initiate the logout request.",
+        {
+          status: 500,
+        }
+      )
+    }
+
+    const url = new URL(authorizationServerMetadata.end_session_endpoint)
     url.searchParams.set("client_id", this.clientMetadata.client_id)
     url.searchParams.set("post_logout_redirect_uri", this.appBaseUrl)
 
