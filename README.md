@@ -1,1 +1,272 @@
-# @auth0/nextjs
+# @auth0/nextjs-auth0
+
+## Getting Started
+
+### 1. Install the SDK
+
+```shell
+npm i @auth0/nextjs-auth0
+```
+
+### 2. Add the environment variables
+
+Add the following environment variables to your `.env.local` file:
+
+```
+AUTH0_DOMAIN=
+AUTH0_CLIENT_ID=
+AUTH0_CLIENT_SECRET=
+AUTH0_SECRET=
+APP_BASE_URL=
+```
+
+The `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_CLIENT_SECRET` can be obtained from the [Auth0 Dashboard](https://manage.auth0.com) once you've created an application. **This application must be a `Regular Web Application`**.
+
+The `AUTH0_SECRET` is the key used to encrypt the session and transaction cookies. You can generate a secret using, like so:
+
+```shell
+openssl rand -hex 32
+```
+
+The `APP_BASE_URL` is the URL that your application is running on. When developing locally, this is most commonly `http://localhost:3000`.
+
+You will need to register the follwing URLs in your Auth0 client via the [Auth0 Dashboard](https://manage.auth0.com):
+
+* Add `http://localhost:3000/auth/callback` to the list of **Allowed Callback URLs**
+* Add `http://localhost:3000/auth/logout` to the list of **Allowed Logout URLs**
+
+### 3. Create the Auth0 SDK client
+
+Create an instance of the Auth0 client. This instance will be imported and used in anywhere we need access to the authentication methods on the server.
+
+Add the following contents to a file named `lib/auth0.ts`:
+
+```ts
+import { Auth0Client } from "@auth0/nextjs-auth0/server"
+
+export const auth0 = new Auth0Client()
+```
+
+### 4. Add the authentication middleware
+
+Create a `middleware.ts` file in the root of your project's directory:
+
+```ts
+import { auth0 } from "./lib/auth0";
+import type { NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  return await auth0.middleware(request);
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+  ],
+};
+```
+
+NOTE: next.js middleware in different places if src/ folder
+
+
+You can now begin to authenticate your users by redirecting them to your application's `/auth/login` route, like so:
+
+```tsx
+<a href="/auth/login?screen_hint=signup">Sign up</a>
+<a href="/auth/login">Log in</a>
+```
+
+NOTE: you must use <a> tags instead of <Link>
+
+TODO: should we add a more full-fledged example?
+
+## Customizing the client
+
+You can pass options to customize the client.
+
+| Option             | Type                     | Description                                                                                                      |
+|--------------------|--------------------------|------------------------------------------------------------------------------------------------------------------|
+| domain             | `string`                 | The Auth0 domain for the tenant.                                                                                 |
+| clientId           | `string`                 | The Auth0 client ID                                                                                              |
+| clientSecret       | `string`                 | The Auth0 client secret                                                                                          |
+| scopes             | `string[]`               | The list of scopes to request authorization for. Defaults to `["openid", "profile", "email", "offline_access"]`. |
+| maxAge             | `number`                 | The maximum amount of time after which a user must reauthenticate.                                               |
+| appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`).                                                     |
+| secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies.                                                       |
+| signInReturnToPath | `string`                 | The path to redirect the user to after successfully authenticating. Defaults to `/`.                             |
+| beforeSessionSaved | `BeforeSessionSavedHook` | A method to manipulate the session before persisting it.                                                         |
+| onCallback         | `OnCallbackHook`         | A method to handle errors or manage redirects after attempting to authenticate.                                  |
+| sessionStore       | `SessionStore`           | A custom session store implementation used to persist sessions to a data store.                                  |
+
+
+## Passing authorization parameters
+
+You can pass custom parameters to the `/authorize` endpoint by specifying them as query parameters to the login route. For example, to specify an `audience`, the login URL would look like so:
+
+```
+<a href="/auth/login?audience=urn:my-api">Login</a>
+```
+
+## Protecting pages, layouts, and server actions
+
+## Accessing the authenticated user
+
+### In the browser
+
+To access the currently authenticated user on the client, you can use the `useUser()` hook, like so:
+
+```tsx
+"use client";
+
+import { useUser } from "@auth0/nextjs-auth0";
+
+export default function Profile() {
+  const { user, isLoading, error } = useUser();
+
+  if (isLoading) return <div>Loading...</div>
+
+  return (
+    <main>
+      <h1>Profile</h1>
+      <div>
+        <pre>{JSON.stringify(user, null, 2)}</pre>
+      </div>
+    </main>
+  );
+}
+```
+
+### On the server (App Router)
+
+On the server, the `getSession()` helper can be used in Server Components, Server Routes, Server Actions, and middleware to get the session of the currently authenticated user and to protect resources, like so:
+
+```tsx
+import { auth0 } from "@/lib/auth0"
+
+export default async function Home() {
+  const session = await auth0.getSession()
+
+  if (!session) {
+    return <div>Not authenticated</div>
+  }
+
+  return (
+    <main>
+      <h1>Welcome, {session.user.name}!</h1>
+    </main>
+  )
+}
+```
+
+### On the server (Pages Router)
+
+On the server, the `getSession(req)` helper can be used in `getServerSideProps`, API routes, and middleware to get the session of the currently authenticated user and to protect resources, like so:
+
+```tsx
+import { auth0 } from "@/lib/auth0"
+import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
+
+export const getServerSideProps = (async (ctx) => {
+  const session = await auth0.getSession(ctx.req)
+
+  if (!session) return { props: { user: null } }
+
+  return { props: { user: session.user ?? null } }
+}) satisfies GetServerSideProps<{ user: any | null }>
+
+export default function Page({
+  user,
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  if (!user) {
+    return (
+      <main>
+        <p>Not authenticated!</p>
+      </main>
+    )
+  }
+
+  return (
+    <main>
+      <p>Welcome, {user.name}!</p>
+    </main>
+  )
+}
+```
+
+
+## Getting an access token
+
+The `getAccessToken()` helper can be used both in the browser and on the server to obtain the access token to call external APIs. If the access token has expired and a refresh token is available, it will automatically be refreshed and persisted.
+
+### In the browser
+
+To obtain an access token to call an external API on the client, you can use the `getAccessToken()` helper, like so:
+
+```tsx
+"use client";
+
+import { getAccessToken } from "@auth0/nextjs-auth0";
+
+export default function Component() {
+  async function fetchData() {
+    const token = await getAccessToken()
+
+    // call external API with the token...
+  }
+
+  return (
+    <main>
+      <button onClick={fetchData}>Fetch Data</button>
+    </main>
+  );
+}
+```
+
+### On the server (App Router)
+
+On the server, the `getAccessToken()` helper can be used in Server Components, Server Routes, Server Actions, and middleware to get an access token to call external APIs, like so:
+
+```tsx
+import { auth0 } from "@/lib/auth0";
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  const token = await auth0.getAccessToken()
+
+  // call external API with token...
+
+  return NextResponse.json({
+    message: "Success!"
+  })
+}
+```
+
+### On the server (Pages Router)
+
+On the server, the `getAccessToken(req)` helper can be used in `getServerSideProps`, API routes, and middleware to get an access token to call external APIs, like so:
+
+```tsx
+import { auth0 } from "@/lib/auth0";
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<{ message: string }>
+) {
+  const token = await auth0.getAccessToken(req)
+
+  // call external API with token...
+
+  res.status(200).json({ message: "Success!" })
+}
+```
+
+## Hooks
+
+## Database sessions
