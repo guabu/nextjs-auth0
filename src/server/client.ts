@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { NextApiRequest } from "next/types"
 
 import {
@@ -142,6 +142,10 @@ export class Auth0Client {
 
   handler() {
     return this.authClient.handler.bind(this.authClient)
+  }
+
+  middleware(req: NextRequest): Promise<NextResponse> {
+    return this.authClient.handler.bind(this.authClient)(req)
   }
 
   /**
