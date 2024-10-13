@@ -103,6 +103,7 @@ You can pass options to customize the client.
 | appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`).                                                     |
 | secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies.                                                       |
 | signInReturnToPath | `string`                 | The path to redirect the user to after successfully authenticating. Defaults to `/`.                             |
+| session | `SessionConfiguration`                 | Configure the session timeouts and whether to use rolling sessions or not.                             |
 | beforeSessionSaved | `BeforeSessionSavedHook` | A method to manipulate the session before persisting it. See [beforeSessionSaved](#beforesessionsaved) for additional details.                                                       |
 | onCallback         | `OnCallbackHook`         | A method to handle errors or manage redirects after attempting to authenticate. See [onCallback](#oncallback) for additional details.                                  |
 | sessionStore       | `SessionStore`           | A custom session store implementation used to persist sessions to a data store. See [Database sessions](#database-sessions) for additional details.                                  |
@@ -322,6 +323,26 @@ export const auth0 = new Auth0Client({
   }
 })
 ```
+
+## Session configuration
+
+The session configuration can be managed by specifying a `session` object when configuring the Auth0 client, like so:
+
+```ts
+export const auth0 = new Auth0Client({
+  session: {
+    rolling: true,
+    absoluteDuration: 60 * 60 * 24 * 30, // 30 days in seconds
+    inactivityDuration: 60 * 60 * 24 * 7 // 7 days in seconds
+  }
+})
+```
+
+| Option             | Type      | Description                                                                                                                                                                                                                                   |
+|--------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| rolling            | `boolean` | When enabled, the session will continue to be extended as long as it is used within the inactivity duration. Once the upper bound, set via the `absoluteDuration`, has been reached, the session will no longer be extended. Default: `true`. |
+| absoluteDuration   | `number`  | The absolute duration after which the session will expire. The value must be specified in seconds. Default: 30 days. ID                                                                                                                       |
+| inactivityDuration | `number`  | The duration of inactivity after which the session will expire. The value must be specified in seconds. Default: 7 days.                                                                                                                      |
 
 ## Database sessions
 
