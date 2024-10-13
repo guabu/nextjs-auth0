@@ -30,10 +30,10 @@ openssl rand -hex 32
 
 The `APP_BASE_URL` is the URL that your application is running on. When developing locally, this is most commonly `http://localhost:3000`.
 
-You will need to register the follwing URLs in your Auth0 client via the [Auth0 Dashboard](https://manage.auth0.com):
-
-* Add `http://localhost:3000/auth/callback` to the list of **Allowed Callback URLs**
-* Add `http://localhost:3000/auth/logout` to the list of **Allowed Logout URLs**
+> [!IMPORTANT]  
+> You will need to register the follwing URLs in your Auth0 client via the [Auth0 Dashboard](https://manage.auth0.com):
+> * Add `http://localhost:3000/auth/callback` to the list of **Allowed Callback URLs**
+> * Add `http://localhost:3000/auth/logout` to the list of **Allowed Logout URLs**
 
 ### 3. Create the Auth0 SDK client
 
