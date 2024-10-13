@@ -103,7 +103,7 @@ You can pass options to customize the client.
 | appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`).                                                     |
 | secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies.                                                       |
 | signInReturnToPath | `string`                 | The path to redirect the user to after successfully authenticating. Defaults to `/`.                             |
-| session | `SessionConfiguration`                 | Configure the session timeouts and whether to use rolling sessions or not.                             |
+| session | `SessionConfiguration`                 | Configure the session timeouts and whether to use rolling sessions or not. See [Session configuration](#session-configuration) for additional details.                             |
 | beforeSessionSaved | `BeforeSessionSavedHook` | A method to manipulate the session before persisting it. See [beforeSessionSaved](#beforesessionsaved) for additional details.                                                       |
 | onCallback         | `OnCallbackHook`         | A method to handle errors or manage redirects after attempting to authenticate. See [onCallback](#oncallback) for additional details.                                  |
 | sessionStore       | `SessionStore`           | A custom session store implementation used to persist sessions to a data store. See [Database sessions](#database-sessions) for additional details.                                  |
