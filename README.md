@@ -75,11 +75,29 @@ export const config = {
 > [!NOTE]  
 > If you're using a `src/` directory, the `middleware.ts` file must be created inside the `src/` directory.
 
-You can now begin to authenticate your users by redirecting them to your application's `/auth/login` route, like so:
+You can now begin to authenticate your users by redirecting them to your application's `/auth/login` route:
 
-```html
-<a href="/auth/login?screen_hint=signup">Sign up</a>
-<a href="/auth/login">Log in</a>
+```tsx
+import { auth0 } from "@/lib/auth0"
+
+export default async function Home() {
+  const session = await auth0.getSession()
+
+  if (!session) {
+    return (
+      <main>
+        <a href="/auth/login?screen_hint=signup">Sign up</a>
+        <a href="/auth/login">Log in</a>
+      </main>
+    )
+  }
+
+  return (
+    <main>
+      <h1>Welcome, {session.user.name}!</h1>
+    </main>
+  )
+}
 ```
 
 > [!IMPORTANT]  
