@@ -113,7 +113,7 @@ You can customize the client by using the options below:
 | clientId           | `string`                 | The Auth0 client ID. If it's not specified, it will be loaded from the `AUTH0_CLIENT_ID` environment variable.                                                                                              |
 | clientSecret       | `string`                 | The Auth0 client secret. If it's not specified, it will be loaded from the `AUTH0_CLIENT_SECRET` environment variable.                                                                                          |
 | scopes             | `string[]`               | The list of scopes to request authorization for. Defaults to `["openid", "profile", "email", "offline_access"]`. |
-| maxAge             | `number`                 | The maximum amount of time after which a user must reauthenticate.                                               |
+| maxAge             | `number`                 | The maximum amount of time, in seconds, after which a user must reauthenticate.                                               |
 | appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`). If it's not specified, it will be loaded from the `APP_BASE_URL` environment variable.                                                     |
 | secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies. If it's not specified, it will be loaded from the `AUTH0_SECRET` environment variable.                                                       |
 | signInReturnToPath | `string`                 | The path to redirect the user to after successfully authenticating. Defaults to `/`.                             |
@@ -355,7 +355,7 @@ export const auth0 = new Auth0Client({
 | Option             | Type      | Description                                                                                                                                                                                                                                   |
 |--------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | rolling            | `boolean` | When enabled, the session will continue to be extended as long as it is used within the inactivity duration. Once the upper bound, set via the `absoluteDuration`, has been reached, the session will no longer be extended. Default: `true`. |
-| absoluteDuration   | `number`  | The absolute duration after which the session will expire. The value must be specified in seconds. Default: 30 days. ID                                                                                                                       |
+| absoluteDuration   | `number`  | The absolute duration after which the session will expire. The value must be specified in seconds. Default: 30 days. |
 | inactivityDuration | `number`  | The duration of inactivity after which the session will expire. The value must be specified in seconds. Default: 7 days.                                                                                                                      |
 
 ## Database sessions
