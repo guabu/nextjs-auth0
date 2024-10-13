@@ -360,27 +360,25 @@ export const auth0 = new Auth0Client({
 
 ## Database sessions
 
-By default, the user's sessions are stored in encrypted cookies. You may choose to persist the sessions in your data store of choice. To do this, you can provide a `SessionStore` implementation as an option when configuring the Auth0 client, like so:
+By default, the user's sessions are stored in encrypted cookies. You may choose to persist the sessions in your data store of choice.
+
+To do this, you can provide a `SessionStore` implementation as an option when configuring the Auth0 client, like so:
 
 ```ts
 export const auth0 = new Auth0Client({
   sessionStore: {
-    async get(sid) {
+    async get(id) {
       // query and return a session by its ID
     },
-    async set(sid, sessionData) {
+    async set(id, sessionData) {
       // upsert the session given its ID and sessionData
     },
-    async delete(sid) {
+    async delete(id) {
       // delete the session using its ID
     }
   }
 })
 ```
-
-TODO: add postgres example
-
-## Protecting pages, layouts, and server actions
 
 ## Routes
 
