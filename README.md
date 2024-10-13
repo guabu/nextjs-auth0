@@ -31,7 +31,7 @@ openssl rand -hex 32
 The `APP_BASE_URL` is the URL that your application is running on. When developing locally, this is most commonly `http://localhost:3000`.
 
 > [!IMPORTANT]  
-> You will need to register the follwing URLs in your Auth0 client via the [Auth0 Dashboard](https://manage.auth0.com):
+> You will need to register the follwing URLs in your Auth0 Application via the [Auth0 Dashboard](https://manage.auth0.com):
 > * Add `http://localhost:3000/auth/callback` to the list of **Allowed Callback URLs**
 > * Add `http://localhost:3000/auth/logout` to the list of **Allowed Logout URLs**
 
@@ -72,20 +72,18 @@ export const config = {
 };
 ```
 
-NOTE: next.js middleware in different places if src/ folder
-
+> [!NOTE]  
+> If you're using a `src/` directory, the `middleware.ts` file must be created inside the `src/` directory.
 
 You can now begin to authenticate your users by redirecting them to your application's `/auth/login` route, like so:
 
-```tsx
+```html
 <a href="/auth/login?screen_hint=signup">Sign up</a>
 <a href="/auth/login">Log in</a>
 ```
 
 > [!IMPORTANT]  
 > You must use `<a>` tags instead of `<Link>` component to ensure the routing is not done client-side which may result in some unexpected behavior.
-
-TODO: should we add a more full-fledged example?
 
 ## Customizing the client
 
