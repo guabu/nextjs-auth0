@@ -101,23 +101,21 @@ export default async function Home() {
 ```
 
 > [!IMPORTANT]  
-> You must use `<a>` tags instead of `<Link>` component to ensure the routing is not done client-side which may result in some unexpected behavior.
+> You must use `<a>` tags instead of the `<Link>` component to ensure that the routing is not done client-side as that may result in some unexpected behavior.
 
 ## Customizing the client
 
-TODO: add links to the `BeforeSessionSavedHook`, `OnCallbackHook`, etc...
-
-You can pass options to customize the client.
+You can customize the client by using the options below:
 
 | Option             | Type                     | Description                                                                                                      |
 |--------------------|--------------------------|------------------------------------------------------------------------------------------------------------------|
-| domain             | `string`                 | The Auth0 domain for the tenant.                                                                                 |
-| clientId           | `string`                 | The Auth0 client ID                                                                                              |
-| clientSecret       | `string`                 | The Auth0 client secret                                                                                          |
+| domain             | `string`                 | The Auth0 domain for the tenant. If it's not specified, it will be loaded from the `AUTH0_DOMAIN` environment variable.                                                                                 |
+| clientId           | `string`                 | The Auth0 client ID. If it's not specified, it will be loaded from the `AUTH0_CLIENT_ID` environment variable.                                                                                              |
+| clientSecret       | `string`                 | The Auth0 client secret. If it's not specified, it will be loaded from the `AUTH0_CLIENT_SECRET` environment variable.                                                                                          |
 | scopes             | `string[]`               | The list of scopes to request authorization for. Defaults to `["openid", "profile", "email", "offline_access"]`. |
 | maxAge             | `number`                 | The maximum amount of time after which a user must reauthenticate.                                               |
-| appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`).                                                     |
-| secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies.                                                       |
+| appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`). If it's not specified, it will be loaded from the `APP_BASE_URL` environment variable.                                                     |
+| secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies. If it's not specified, it will be loaded from the `AUTH0_SECRET` environment variable.                                                       |
 | signInReturnToPath | `string`                 | The path to redirect the user to after successfully authenticating. Defaults to `/`.                             |
 | session | `SessionConfiguration`                 | Configure the session timeouts and whether to use rolling sessions or not. See [Session configuration](#session-configuration) for additional details.                             |
 | beforeSessionSaved | `BeforeSessionSavedHook` | A method to manipulate the session before persisting it. See [beforeSessionSaved](#beforesessionsaved) for additional details.                                                       |
