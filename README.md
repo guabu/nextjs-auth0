@@ -22,7 +22,7 @@ APP_BASE_URL=
 
 The `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_CLIENT_SECRET` can be obtained from the [Auth0 Dashboard](https://manage.auth0.com) once you've created an application. **This application must be a `Regular Web Application`**.
 
-The `AUTH0_SECRET` is the key used to encrypt the session and transaction cookies. You can generate a secret using, like so:
+The `AUTH0_SECRET` is the key used to encrypt the session and transaction cookies. You can generate a secret using `openssl`:
 
 ```shell
 openssl rand -hex 32
@@ -82,11 +82,14 @@ You can now begin to authenticate your users by redirecting them to your applica
 <a href="/auth/login">Log in</a>
 ```
 
-NOTE: you must use <a> tags instead of <Link>
+> [!IMPORTANT]  
+> You must use `<a>` tags instead of `<Link>` component to ensure the routing is not done client-side which may result in some unexpected behavior.
 
 TODO: should we add a more full-fledged example?
 
 ## Customizing the client
+
+TODO: add links to the `BeforeSessionSavedHook`, `OnCallbackHook`, etc...
 
 You can pass options to customize the client.
 
@@ -100,9 +103,9 @@ You can pass options to customize the client.
 | appBaseUrl         | `string`                 | The URL of your application (e.g.: `http://localhost:3000`).                                                     |
 | secret             | `string`                 | A 32-byte, hex-encoded secret used for encrypting cookies.                                                       |
 | signInReturnToPath | `string`                 | The path to redirect the user to after successfully authenticating. Defaults to `/`.                             |
-| beforeSessionSaved | `BeforeSessionSavedHook` | A method to manipulate the session before persisting it.                                                         |
-| onCallback         | `OnCallbackHook`         | A method to handle errors or manage redirects after attempting to authenticate.                                  |
-| sessionStore       | `SessionStore`           | A custom session store implementation used to persist sessions to a data store.                                  |
+| beforeSessionSaved | `BeforeSessionSavedHook` | A method to manipulate the session before persisting it. See [beforeSessionSaved](#beforesessionsaved) for additional details.                                                       |
+| onCallback         | `OnCallbackHook`         | A method to handle errors or manage redirects after attempting to authenticate. See [onCallback](#oncallback) for additional details.                                  |
+| sessionStore       | `SessionStore`           | A custom session store implementation used to persist sessions to a data store. See [Database sessions](#database-sessions) for additional details.                                  |
 
 
 ## Passing authorization parameters
@@ -112,8 +115,6 @@ You can pass custom parameters to the `/authorize` endpoint by specifying them a
 ```
 <a href="/auth/login?audience=urn:my-api">Login</a>
 ```
-
-## Protecting pages, layouts, and server actions
 
 ## Accessing the authenticated user
 
@@ -269,4 +270,89 @@ export default async function handler(
 
 ## Hooks
 
+The SDK offers some hooks to enable you to provide custom logic that would be run at certain points.
+
+### `beforeSessionSaved`
+
+The `beforeSessionSaved` hook is run right before the session is persisted. It provides a mechanism to modify the session claims before persisting them.
+
+The hook recieves a `SessionData` object and must return a Promise that resolves to a `SessionData` object: `(session: SessionData) => Promise<SessionData>`. For example:
+
+```ts
+export const auth0 = new Auth0Client({
+  async beforeSessionSaved(session) {
+    return {
+      ...session,
+      user: {
+        ...session.user,
+        foo: "bar"
+      }
+    }
+  },
+})
+```
+
+### `onCallback`
+
+The `onCallback` hook is run once the user has been redirected back from Auth0 to your application with either an error or the authorization code which will be verified and exchanged.
+
+The `onCallback` hook receives 3 parameters:
+1. `error`: the error returned from Auth0 or when attempting to complete the transaction. This will be `null` if the flow completed successfully.
+2. `context`: provides context on the transaction that initiated the transaction.
+3. `session`: the `SessionData` that will be persisted once the transaction completes successfully. This will be `null` if there was an error.
+
+The hook must return a Promise that resolves to a `NextResponse`.
+
+For example, a custom `onCallback` hook may be specified like so:
+
+```ts
+export const auth0 = new Auth0Client({
+  async onCallback(error, context, session) {
+    // redirect the user to a custom error page
+    if (error) {
+      return NextResponse.redirect(
+        new URL(`/error?error=${error.message}`, process.env.APP_BASE_URL)
+      )
+    }
+
+    // complete the redirect to the provided returnTo URL
+    return NextResponse.redirect(
+      new URL(context.returnTo || "/", process.env.APP_BASE_URL)
+    )
+  }
+})
+```
+
 ## Database sessions
+
+By default, the user's sessions are stored in encrypted cookies. You may choose to persist the sessions in your data store of choice. To do this, you can provide a `SessionStore` implementation as an option when configuring the Auth0 client, like so:
+
+```ts
+export const auth0 = new Auth0Client({
+  sessionStore: {
+    async get(sid) {
+      // query and return a session by its ID
+    },
+    async set(sid, sessionData) {
+      // upsert the session given its ID and sessionData
+    },
+    async delete(sid) {
+      // delete the session using its ID
+    }
+  }
+})
+```
+
+TODO: add postgres example
+
+## Protecting pages, layouts, and server actions
+
+## Routes
+
+The SDK mounts 5 routes:
+
+1. `/auth/login`: the login route that the user will be redirected to to start a initiate an authentication transaction
+2. `/auth/logout`: the logout route that must be addedto your Auth0 application's Allowed Logout URLs
+3. `/auth/callback`: the callback route that must be addedto your Auth0 application's Allowed Callback URLs
+4. `/auth/profile`: the route to check the user's session and return their attributes
+5. `/auth/access-token`: the route to check the user's session and return an access token (which will be automatically refreshed if a refresh token is available)
