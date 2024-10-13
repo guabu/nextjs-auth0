@@ -127,7 +127,7 @@ You can customize the client by using the options below:
 
 You can pass custom parameters to the `/authorize` endpoint by specifying them as query parameters to the login route. For example, to specify an `audience`, the login URL would look like so:
 
-```
+```html
 <a href="/auth/login?audience=urn:my-api">Login</a>
 ```
 
@@ -285,7 +285,7 @@ export default async function handler(
 
 ## Hooks
 
-The SDK offers some hooks to enable you to provide custom logic that would be run at certain points.
+The SDK exposes hooks to enable you to provide custom logic that would be run at certain lifecycle events.
 
 ### `beforeSessionSaved`
 
@@ -312,7 +312,7 @@ export const auth0 = new Auth0Client({
 The `onCallback` hook is run once the user has been redirected back from Auth0 to your application with either an error or the authorization code which will be verified and exchanged.
 
 The `onCallback` hook receives 3 parameters:
-1. `error`: the error returned from Auth0 or when attempting to complete the transaction. This will be `null` if the flow completed successfully.
+1. `error`: the error returned from Auth0 or when attempting to complete the transaction. This will be `null` if the transaction was completed successfully.
 2. `context`: provides context on the transaction that initiated the transaction.
 3. `session`: the `SessionData` that will be persisted once the transaction completes successfully. This will be `null` if there was an error.
 
@@ -354,9 +354,15 @@ export const auth0 = new Auth0Client({
 
 | Option             | Type      | Description                                                                                                                                                                                                                                   |
 |--------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| rolling            | `boolean` | When enabled, the session will continue to be extended as long as it is used within the inactivity duration. Once the upper bound, set via the `absoluteDuration`, has been reached, the session will no longer be extended. Default: `true`. |
-| absoluteDuration   | `number`  | The absolute duration after which the session will expire. The value must be specified in seconds. Default: 30 days. |
-| inactivityDuration | `number`  | The duration of inactivity after which the session will expire. The value must be specified in seconds. Default: 7 days.                                                                                                                      |
+| rolling            | `boolean` | When enabled, the session will continue to be extended as long as it is used within the inactivity duration. Once the upper bound, set via the `absoluteDuration`, has been reached, the session will no longer be extended.
+
+Default: `true`. |
+| absoluteDuration   | `number`  | The absolute duration after which the session will expire. The value must be specified in seconds.
+
+Default: 30 days. |
+| inactivityDuration | `number`  | The duration of inactivity after which the session will expire. The value must be specified in seconds.
+
+Default: 7 days. |
 
 ## Database sessions
 
