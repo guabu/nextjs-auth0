@@ -22,12 +22,36 @@ export interface SessionData extends jose.JWTPayload {
   }
 }
 
-interface SessionStoreOptions {
-  secret: string
+export interface SessionConfiguration {
+  /**
+   * A boolean indicating whether rolling sessions should be used or not.
+   * 
+   * When enabled, the session will continue to be extended as long as it is used within the inactivity duration.
+   * Once the upper bound, set via the `absoluteDuration`, has been reached, the session will no longer be extended.
+   * 
+   * Default: `true`.
+   */
+  rolling?: boolean;
+  /**
+   * The absolute duration after which the session will expire. The value must be specified in seconds..
+   * 
+   * Once the absolute duration has been reached, the session will no longer be extended.
+   * 
+   * Default: 30 days.
+   */
+  absoluteDuration?: number;
+  /**
+   * The duration of inactivity after which the session will expire. The value must be specified in seconds.
+   * 
+   * The session will be extended as long as it was active before the inactivity duration has been reached.
+   * 
+   * Default: 7 days.
+   */
+  inactivityDuration?: number;
+}
 
-  rolling?: boolean // defaults to true
-  absoluteDuration?: number // defaults to 30 days
-  inactivityDuration?: number // defaults to 7 days
+interface SessionStoreOptions extends SessionConfiguration {
+  secret: string
 }
 
 export abstract class AbstractSessionStore {

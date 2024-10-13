@@ -10,6 +10,7 @@ import {
 import { RequestCookies } from "./cookies"
 import {
   AbstractSessionStore,
+  SessionConfiguration,
   SessionData,
 } from "./session/abstract-session-store"
 import {
@@ -31,6 +32,9 @@ interface Auth0ClientOptions {
   appBaseUrl?: string
   secret?: string
   signInReturnToPath?: string
+
+  // session configuration
+  session?: SessionConfiguration
 
   // hooks
   beforeSessionSaved?: BeforeSessionSavedHook
@@ -109,15 +113,18 @@ export class Auth0Client {
     }
 
     this.transactionStore = new TransactionStore({
+      ...options.session,
       secret,
     })
 
     this.sessionStore = options.sessionStore
       ? new StatefulSessionStore({
+        ...options.session,
         secret,
         store: options.sessionStore,
       })
       : new StatelessSessionStore({
+        ...options.session,
         secret,
       })
 
