@@ -53,7 +53,7 @@ export interface AuthorizationParameters {
    *
    * Defaults to `"openid profile email offline_access"`.
    */
-  scope: string
+  scope?: string
   /**
    * The maximum amount of time, in seconds, after which a user must reauthenticate.
    */
@@ -72,6 +72,7 @@ export interface AuthClientOptions {
   clientId: string
   clientSecret: string
   authorizationParameters?: AuthorizationParameters
+  authorizationServerMetadata?: oauth.AuthorizationServer
 
   secret: string
   appBaseUrl: string
@@ -89,6 +90,7 @@ export class AuthClient {
   private issuer: string
   private redirectUri: URL
   private authorizationParameters: AuthorizationParameters
+  private authorizationServerMetadata?: oauth.AuthorizationServer
 
   private appBaseUrl: string
   private signInReturnToPath: string
@@ -111,6 +113,7 @@ export class AuthClient {
     this.authorizationParameters = options.authorizationParameters || {
       scope: DEFAULT_SCOPES,
     }
+    this.authorizationServerMetadata = options.authorizationServerMetadata
 
     if (!this.authorizationParameters.scope) {
       this.authorizationParameters.scope = DEFAULT_SCOPES
@@ -517,6 +520,10 @@ export class AuthClient {
   private async discoverAuthorizationServerMetadata(): Promise<
     [null, oauth.AuthorizationServer] | [SdkError, null]
   > {
+    if (this.authorizationServerMetadata) {
+      return [null, this.authorizationServerMetadata]
+    }
+
     const issuer = new URL(this.issuer)
 
     try {
