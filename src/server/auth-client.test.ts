@@ -654,7 +654,7 @@ describe("Authentication Client", async () => {
   })
 
   describe("handleLogout", async () => {
-    it("should redirect to the authorization server and store the transaction state", async () => {
+    it("should redirect to the authorization server logout URL with the correct params", async () => {
       const domain = "guabu.us.auth0.com"
       const clientId = "client-id"
       const clientSecret = "client-secret"
@@ -771,6 +771,105 @@ describe("Authentication Client", async () => {
       const cookie = response.cookies.get("__session")
       expect(cookie?.value).toEqual("")
       expect(cookie?.expires).toEqual(new Date("1970-01-01T00:00:00.000Z"))
+    })
+  })
+
+  describe("handleProfile", async () => {
+    it("should return the user attributes stored in the session", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client-id"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+        authorizationServerMetadata,
+
+        secret,
+        appBaseUrl,
+      })
+
+      // set the session cookie to assert it's been cleared
+      const session: SessionData = {
+        user: {
+          sub: "user_123",
+          name: "John Doe",
+          email: "john@example.com",
+          picture: "https://example.com/john.jpg",
+        },
+        tokenSet: {
+          accessToken: "at_123",
+          refreshToken: "rt_123",
+          expiresAt: 123456,
+        },
+        internal: {
+          sid: "auth0-sid",
+          createdAt: Math.floor(Date.now() / 1000),
+        },
+      }
+      const sessionCookie = await encrypt(session, secret)
+      const headers = new Headers()
+      headers.append("cookie", `__session=${sessionCookie}`)
+      const request = new NextRequest(new URL("/auth/profile", appBaseUrl), {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleProfile(request)
+      expect(response.status).toEqual(200)
+      expect(await response.json()).toEqual({
+        sub: "user_123",
+        name: "John Doe",
+        email: "john@example.com",
+        picture: "https://example.com/john.jpg",
+      })
+    })
+
+    it("should return a 401 if the user is not authenticated", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client-id"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+        authorizationServerMetadata,
+
+        secret,
+        appBaseUrl,
+      })
+
+      const request = new NextRequest(new URL("/auth/profile", appBaseUrl), {
+        method: "GET",
+      })
+
+      const response = await authClient.handleProfile(request)
+      expect(response.status).toEqual(401)
+      expect(response.body).toBeNull()
     })
   })
 })
