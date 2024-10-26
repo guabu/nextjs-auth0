@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { generateSecret } from "../test/utils"
 import { AuthClient } from "./auth-client"
 import { decrypt, encrypt, RequestCookies, ResponseCookies } from "./cookies"
+import { SessionData } from "./session/abstract-session-store"
 import { StatelessSessionStore } from "./session/stateless-session-store"
 import { TransactionStore } from "./transaction-store"
 
@@ -649,6 +650,127 @@ describe("Authentication Client", async () => {
         state: authorizationUrl.searchParams.get("state"),
         returnTo: "/dashboard",
       })
+    })
+  })
+
+  describe("handleLogout", async () => {
+    it("should redirect to the authorization server and store the transaction state", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client-id"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+        authorizationServerMetadata,
+
+        secret,
+        appBaseUrl,
+      })
+
+      // set the session cookie to assert it's been cleared
+      const session: SessionData = {
+        user: { sub: "user_123" },
+        tokenSet: {
+          accessToken: "at_123",
+          refreshToken: "rt_123",
+          expiresAt: 123456,
+        },
+        internal: {
+          sid: "auth0-sid",
+          createdAt: Math.floor(Date.now() / 1000),
+        },
+      }
+      const sessionCookie = await encrypt(session, secret)
+      const headers = new Headers()
+      headers.append("cookie", `__session=${sessionCookie}`)
+      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleLogout(request)
+      expect(response.status).toEqual(307)
+      expect(response.headers.get("Location")).not.toBeNull()
+
+      const authorizationUrl = new URL(response.headers.get("Location")!)
+      expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+
+      // query parameters
+      expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+      expect(
+        authorizationUrl.searchParams.get("post_logout_redirect_uri")
+      ).toEqual(`${appBaseUrl}`)
+      expect(authorizationUrl.searchParams.get("logout_hint")).toEqual(
+        "auth0-sid"
+      )
+
+      // session cookie is cleared
+      const cookie = response.cookies.get("__session")
+      expect(cookie?.value).toEqual("")
+      expect(cookie?.expires).toEqual(new Date("1970-01-01T00:00:00.000Z"))
+    })
+
+    it("should not include the logout_hint parameter if a session does not exist", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client-id"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+        authorizationServerMetadata,
+
+        secret,
+        appBaseUrl,
+      })
+
+      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
+        method: "GET",
+      })
+
+      const response = await authClient.handleLogout(request)
+      expect(response.status).toEqual(307)
+      expect(response.headers.get("Location")).not.toBeNull()
+
+      const authorizationUrl = new URL(response.headers.get("Location")!)
+      expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+
+      // query parameters
+      expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+      expect(
+        authorizationUrl.searchParams.get("post_logout_redirect_uri")
+      ).toEqual(`${appBaseUrl}`)
+      expect(authorizationUrl.searchParams.get("logout_hint")).toBeNull()
+
+      // session cookie is cleared
+      const cookie = response.cookies.get("__session")
+      expect(cookie?.value).toEqual("")
+      expect(cookie?.expires).toEqual(new Date("1970-01-01T00:00:00.000Z"))
     })
   })
 })
