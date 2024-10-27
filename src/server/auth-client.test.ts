@@ -795,6 +795,49 @@ describe("Authentication Client", async () => {
       expect(cookie?.value).toEqual("")
       expect(cookie?.expires).toEqual(new Date("1970-01-01T00:00:00.000Z"))
     })
+
+    it("should return an error if the client does not have RP-Initiated Logout enabled", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          discoveryResponse: Response.json({
+            ..._authorizationServerMetadata,
+            end_session_endpoint: null,
+          }),
+        }),
+      })
+
+      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
+        method: "GET",
+      })
+
+      const response = await authClient.handleLogout(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual(
+        "An error occured while trying to initiate the logout request."
+      )
+    })
   })
 
   describe("handleProfile", async () => {
@@ -2229,10 +2272,12 @@ describe("Authentication Client", async () => {
 
 function getMockFetchImplementation({
   tokenEndpointResponse,
+  discoveryResponse,
   audience,
   nonce,
 }: {
   tokenEndpointResponse?: oauth.TokenEndpointResponse | oauth.OAuth2Error
+  discoveryResponse?: Response
   audience?: string
   nonce?: string
 } = {}) {
@@ -2278,7 +2323,7 @@ function getMockFetchImplementation({
 
     // discovery URL
     if (url.pathname === "/.well-known/openid-configuration") {
-      return Response.json(_authorizationServerMetadata)
+      return Response.json(discoveryResponse ?? _authorizationServerMetadata)
     }
 
     return new Response(null, { status: 404 })
