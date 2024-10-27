@@ -1,12 +1,14 @@
-import { NextRequest } from "next/server"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { NextRequest, NextResponse } from "next/server"
+import * as jose from "jose"
+import * as oauth from "oauth4webapi"
+import { describe, expect, it, vi } from "vitest"
 
 import { generateSecret } from "../test/utils"
 import { AuthClient } from "./auth-client"
-import { decrypt, encrypt, RequestCookies, ResponseCookies } from "./cookies"
+import { decrypt, encrypt } from "./cookies"
 import { SessionData } from "./session/abstract-session-store"
 import { StatelessSessionStore } from "./session/stateless-session-store"
-import { TransactionStore } from "./transaction-store"
+import { TransactionState, TransactionStore } from "./transaction-store"
 
 describe("Authentication Client", async () => {
   describe("initialization", async () => {
@@ -35,6 +37,8 @@ describe("Authentication Client", async () => {
             authorizationParameters: {
               scope: "profile email",
             },
+
+            fetch: getMockFetchImplementation(),
           })
       ).toThrowError()
     })
@@ -59,6 +63,8 @@ describe("Authentication Client", async () => {
 
         secret,
         appBaseUrl: "https://example.com",
+
+        fetch: getMockFetchImplementation(),
       })
       const request = new NextRequest("https://example.com/auth/login", {
         method: "GET",
@@ -86,6 +92,8 @@ describe("Authentication Client", async () => {
 
         secret,
         appBaseUrl: "https://example.com",
+
+        fetch: getMockFetchImplementation(),
       })
       const request = new NextRequest("https://example.com/auth/callback", {
         method: "GET",
@@ -113,6 +121,8 @@ describe("Authentication Client", async () => {
 
         secret,
         appBaseUrl: "https://example.com",
+
+        fetch: getMockFetchImplementation(),
       })
       const request = new NextRequest("https://example.com/auth/logout", {
         method: "GET",
@@ -140,6 +150,8 @@ describe("Authentication Client", async () => {
 
         secret,
         appBaseUrl: "https://example.com",
+
+        fetch: getMockFetchImplementation(),
       })
       const request = new NextRequest("https://example.com/auth/profile", {
         method: "GET",
@@ -167,6 +179,8 @@ describe("Authentication Client", async () => {
 
         secret,
         appBaseUrl: "https://example.com",
+
+        fetch: getMockFetchImplementation(),
       })
       const request = new NextRequest("https://example.com/auth/access-token", {
         method: "GET",
@@ -180,7 +194,7 @@ describe("Authentication Client", async () => {
   describe("handleLogin", async () => {
     it("should redirect to the authorization server and store the transaction state", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -198,10 +212,11 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
       const request = new NextRequest(new URL("/auth/login", appBaseUrl), {
         method: "GET",
@@ -247,7 +262,7 @@ describe("Authentication Client", async () => {
     describe("authorization parameters", async () => {
       it("should forward the query parameters to the authorization server", async () => {
         const domain = "guabu.us.auth0.com"
-        const clientId = "client-id"
+        const clientId = "client_123"
         const clientSecret = "client-secret"
         const appBaseUrl = "https://example.com"
 
@@ -265,10 +280,11 @@ describe("Authentication Client", async () => {
           domain,
           clientId,
           clientSecret,
-          authorizationServerMetadata,
 
           secret,
           appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
         })
         const loginUrl = new URL("/auth/login", appBaseUrl)
         loginUrl.searchParams.set("custom_param", "custom_value")
@@ -326,7 +342,7 @@ describe("Authentication Client", async () => {
 
       it("should forward the configured authorization parameters to the authorization server", async () => {
         const domain = "guabu.us.auth0.com"
-        const clientId = "client-id"
+        const clientId = "client_123"
         const clientSecret = "client-secret"
         const appBaseUrl = "https://example.com"
 
@@ -344,7 +360,6 @@ describe("Authentication Client", async () => {
           domain,
           clientId,
           clientSecret,
-          authorizationServerMetadata,
           authorizationParameters: {
             scope: "openid profile email offline_access custom_scope",
             audience: "urn:mystore:api",
@@ -353,6 +368,8 @@ describe("Authentication Client", async () => {
 
           secret,
           appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
         })
         const loginUrl = new URL("/auth/login", appBaseUrl)
         const request = new NextRequest(loginUrl, {
@@ -395,7 +412,7 @@ describe("Authentication Client", async () => {
 
       it("should override the configured authorization parameters with the query parameters", async () => {
         const domain = "guabu.us.auth0.com"
-        const clientId = "client-id"
+        const clientId = "client_123"
         const clientSecret = "client-secret"
         const appBaseUrl = "https://example.com"
 
@@ -413,7 +430,6 @@ describe("Authentication Client", async () => {
           domain,
           clientId,
           clientSecret,
-          authorizationServerMetadata,
           authorizationParameters: {
             audience: "from-config",
             custom_param: "from-config",
@@ -421,6 +437,8 @@ describe("Authentication Client", async () => {
 
           secret,
           appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
         })
         const loginUrl = new URL("/auth/login", appBaseUrl)
         loginUrl.searchParams.set("custom_param", "from-query")
@@ -465,7 +483,7 @@ describe("Authentication Client", async () => {
 
       it("should not override internal authorization parameter values", async () => {
         const domain = "guabu.us.auth0.com"
-        const clientId = "client-id"
+        const clientId = "client_123"
         const clientSecret = "client-secret"
         const appBaseUrl = "https://example.com"
 
@@ -483,7 +501,6 @@ describe("Authentication Client", async () => {
           domain,
           clientId,
           clientSecret,
-          authorizationServerMetadata,
           authorizationParameters: {
             client_id: "from-config",
             redirect_uri: "from-config",
@@ -500,6 +517,8 @@ describe("Authentication Client", async () => {
 
           secret,
           appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
         })
         const loginUrl = new URL("/auth/login", appBaseUrl)
         loginUrl.searchParams.set("client_id", "from-query")
@@ -553,7 +572,7 @@ describe("Authentication Client", async () => {
 
     it("should store the maxAge in the transaction state and forward it to the authorization server", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -571,13 +590,14 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
         authorizationParameters: {
           max_age: 3600,
         },
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
       const loginUrl = new URL("/auth/login", appBaseUrl)
       const request = new NextRequest(loginUrl, {
@@ -606,7 +626,7 @@ describe("Authentication Client", async () => {
 
     it("should store the returnTo path in the transaction state", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -624,10 +644,11 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
       const loginUrl = new URL("/auth/login", appBaseUrl)
       loginUrl.searchParams.set("returnTo", "/dashboard")
@@ -656,7 +677,7 @@ describe("Authentication Client", async () => {
   describe("handleLogout", async () => {
     it("should redirect to the authorization server logout URL with the correct params", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -674,10 +695,11 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
 
       // set the session cookie to assert it's been cleared
@@ -725,7 +747,7 @@ describe("Authentication Client", async () => {
 
     it("should not include the logout_hint parameter if a session does not exist", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -743,10 +765,11 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
 
       const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
@@ -777,7 +800,7 @@ describe("Authentication Client", async () => {
   describe("handleProfile", async () => {
     it("should return the user attributes stored in the session", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -795,10 +818,11 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
 
       // set the session cookie to assert it's been cleared
@@ -839,7 +863,7 @@ describe("Authentication Client", async () => {
 
     it("should return a 401 if the user is not authenticated", async () => {
       const domain = "guabu.us.auth0.com"
-      const clientId = "client-id"
+      const clientId = "client_123"
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
@@ -857,10 +881,11 @@ describe("Authentication Client", async () => {
         domain,
         clientId,
         clientSecret,
-        authorizationServerMetadata,
 
         secret,
         appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
       })
 
       const request = new NextRequest(new URL("/auth/profile", appBaseUrl), {
@@ -872,9 +897,1022 @@ describe("Authentication Client", async () => {
       expect(response.body).toBeNull()
     })
   })
+
+  describe("handleCallback", async () => {
+    it("should establish a session — happy path", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const state = "transaction-state"
+      const code = "auth-code"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const url = new URL("/auth/callback", appBaseUrl)
+      url.searchParams.set("code", code)
+      url.searchParams.set("state", state)
+
+      const headers = new Headers()
+      const transactionState: TransactionState = {
+        nonce: "nonce-value",
+        maxAge: 3600,
+        codeVerifier: "code-verifier",
+        responseType: "code",
+        state: state,
+        returnTo: "/dashboard",
+      }
+      headers.set(
+        "cookie",
+        `__txn_${state}=${await encrypt(transactionState, secret)}`
+      )
+      const request = new NextRequest(url, {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleCallback(request)
+      expect(response.status).toEqual(307)
+      expect(response.headers.get("Location")).not.toBeNull()
+
+      const redirectUrl = new URL(response.headers.get("Location")!)
+      expect(redirectUrl.pathname).toEqual("/dashboard")
+
+      // validate the session cookie
+      const sessionCookie = response.cookies.get("__session")
+      expect(sessionCookie).toBeDefined()
+      const session = await decrypt(sessionCookie!.value, secret)
+      expect(session).toEqual({
+        user: {
+          sub: "user_123",
+        },
+        tokenSet: {
+          accessToken: "at_123",
+          refreshToken: "rt_123",
+          expiresAt: expect.any(Number),
+        },
+        internal: {
+          sid: expect.any(String),
+          createdAt: expect.any(Number),
+        },
+      })
+
+      // validate the transaction cookie has been removed
+      const transactionCookie = response.cookies.get(`__txn_${state}`)
+      expect(transactionCookie).toBeDefined()
+      expect(transactionCookie!.value).toEqual("")
+      expect(transactionCookie!.expires).toEqual(
+        new Date("1970-01-01T00:00:00.000Z")
+      )
+    })
+
+    it("should return an error if the state parameter is missing", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const code = "auth-code"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const url = new URL("/auth/callback", appBaseUrl)
+      url.searchParams.set("code", code)
+
+      const request = new NextRequest(url, {
+        method: "GET",
+      })
+
+      const response = await authClient.handleCallback(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual("The state parameter is missing.")
+    })
+
+    it("should return an error if the transaction state could not be found", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const state = "transaction-state"
+      const code = "auth-code"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const url = new URL("/auth/callback", appBaseUrl)
+      url.searchParams.set("code", code)
+      url.searchParams.set("state", state)
+
+      const headers = new Headers()
+      const transactionState: TransactionState = {
+        nonce: "nonce-value",
+        maxAge: 3600,
+        codeVerifier: "code-verifier",
+        responseType: "code",
+        state: state,
+        returnTo: "/dashboard",
+      }
+      headers.set(
+        "cookie",
+        `__txn_does-not-exist=${await encrypt(transactionState, secret)}`
+      )
+      const request = new NextRequest(url, {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleCallback(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual("The state parameter is missing.")
+    })
+
+    it("should return an error when there is an error authorizing the user", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const state = "transaction-state"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const url = new URL("/auth/callback", appBaseUrl)
+      url.searchParams.set("error", "some-error-code")
+      url.searchParams.set("error_description", "some-error-description")
+      url.searchParams.set("state", state)
+
+      const headers = new Headers()
+      const transactionState: TransactionState = {
+        nonce: "nonce-value",
+        maxAge: 3600,
+        codeVerifier: "code-verifier",
+        responseType: "code",
+        state: state,
+        returnTo: "/dashboard",
+      }
+      headers.set(
+        "cookie",
+        `__txn_${state}=${await encrypt(transactionState, secret)}`
+      )
+      const request = new NextRequest(url, {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleCallback(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual(
+        "An error occured during the authorization flow."
+      )
+    })
+
+    it("should return an error if there was an error during the code exchange", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const state = "transaction-state"
+      const code = "auth-code"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          tokenEndpointResponse: {
+            error: "some-error-code",
+            error_description: "some-error-description",
+          },
+        }),
+      })
+
+      const url = new URL("/auth/callback", appBaseUrl)
+      url.searchParams.set("code", code)
+      url.searchParams.set("state", state)
+
+      const headers = new Headers()
+      const transactionState: TransactionState = {
+        nonce: "nonce-value",
+        maxAge: 3600,
+        codeVerifier: "code-verifier",
+        responseType: "code",
+        state: state,
+        returnTo: "/dashboard",
+      }
+      headers.set(
+        "cookie",
+        `__txn_${state}=${await encrypt(transactionState, secret)}`
+      )
+      const request = new NextRequest(url, {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleCallback(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual(
+        "An error occured while trying to exchange the authorization code."
+      )
+    })
+
+    describe("onCallback hook", async () => {
+      it("should be called with the session data if the session is established", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const state = "transaction-state"
+        const code = "auth-code"
+
+        const mockOnCallback = vi
+          .fn()
+          .mockResolvedValue(
+            NextResponse.redirect(new URL("/other-path", appBaseUrl))
+          )
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          onCallback: mockOnCallback,
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("code", code)
+        url.searchParams.set("state", state)
+
+        const headers = new Headers()
+        const transactionState: TransactionState = {
+          nonce: "nonce-value",
+          maxAge: 3600,
+          codeVerifier: "code-verifier",
+          responseType: "code",
+          state: state,
+          returnTo: "/dashboard",
+        }
+        headers.set(
+          "cookie",
+          `__txn_${state}=${await encrypt(transactionState, secret)}`
+        )
+        const request = new NextRequest(url, {
+          method: "GET",
+          headers,
+        })
+
+        // validate the new response redirect
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/other-path")
+
+        const expectedSession = {
+          user: {
+            sub: "user_123",
+          },
+          tokenSet: {
+            accessToken: "at_123",
+            refreshToken: "rt_123",
+            expiresAt: expect.any(Number),
+          },
+          internal: {
+            sid: expect.any(String),
+            createdAt: expect.any(Number),
+          },
+        }
+        const expectedContext = {
+          returnTo: transactionState.returnTo,
+        }
+
+        expect(mockOnCallback).toHaveBeenCalledWith(
+          null,
+          expectedContext,
+          expectedSession
+        )
+
+        // validate the session cookie
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeDefined()
+        const session = await decrypt(sessionCookie!.value, secret)
+        expect(session).toEqual(expectedSession)
+      })
+
+      it("should be called with an error if the state parameter is missing", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const code = "auth-code"
+
+        const mockOnCallback = vi
+          .fn()
+          .mockResolvedValue(
+            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+          )
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          onCallback: mockOnCallback,
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("code", code)
+
+        const request = new NextRequest(url, {
+          method: "GET",
+        })
+
+        // validate the new response redirect
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/error-page")
+
+        expect(mockOnCallback).toHaveBeenCalledWith(expect.any(Error), {}, null)
+        expect(mockOnCallback.mock.calls[0][0].code).toEqual("missing_state")
+
+        // validate the session cookie has not been set
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeUndefined()
+      })
+
+      it("should be called with an error if the transaction state could not be found", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const state = "transaction-state"
+        const code = "auth-code"
+
+        const mockOnCallback = vi
+          .fn()
+          .mockResolvedValue(
+            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+          )
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          onCallback: mockOnCallback,
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("code", code)
+        url.searchParams.set("state", state)
+
+        const headers = new Headers()
+        const transactionState: TransactionState = {
+          nonce: "nonce-value",
+          maxAge: 3600,
+          codeVerifier: "code-verifier",
+          responseType: "code",
+          state: state,
+          returnTo: "/dashboard",
+        }
+        headers.set(
+          "cookie",
+          `__txn_non-existent-state=${await encrypt(transactionState, secret)}`
+        )
+        const request = new NextRequest(url, {
+          method: "GET",
+          headers,
+        })
+
+        // validate the new response redirect
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/error-page")
+
+        expect(mockOnCallback).toHaveBeenCalledWith(expect.any(Error), {}, null)
+        expect(mockOnCallback.mock.calls[0][0].code).toEqual("missing_state")
+
+        // validate the session cookie has not been set
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeUndefined()
+      })
+
+      it("should be called with an error when there is an error authorizing the user", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const state = "transaction-state"
+        const code = "auth-code"
+
+        const mockOnCallback = vi
+          .fn()
+          .mockResolvedValue(
+            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+          )
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          onCallback: mockOnCallback,
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("error", "some-error-code")
+        url.searchParams.set("error_description", "some-error-description")
+        url.searchParams.set("state", state)
+
+        const headers = new Headers()
+        const transactionState: TransactionState = {
+          nonce: "nonce-value",
+          maxAge: 3600,
+          codeVerifier: "code-verifier",
+          responseType: "code",
+          state: state,
+          returnTo: "/dashboard",
+        }
+        headers.set(
+          "cookie",
+          `__txn_${state}=${await encrypt(transactionState, secret)}`
+        )
+        const request = new NextRequest(url, {
+          method: "GET",
+          headers,
+        })
+
+        // validate the new response redirect
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/error-page")
+
+        expect(mockOnCallback).toHaveBeenCalledWith(
+          expect.any(Error),
+          {
+            returnTo: transactionState.returnTo,
+          },
+          null
+        )
+        expect(mockOnCallback.mock.calls[0][0].code).toEqual(
+          "authorization_error"
+        )
+
+        // validate the session cookie has not been set
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeUndefined()
+      })
+
+      it("should be called with an error if there was an error during the code exchange", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const state = "transaction-state"
+        const code = "auth-code"
+
+        const mockOnCallback = vi
+          .fn()
+          .mockResolvedValue(
+            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+          )
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation({
+            tokenEndpointResponse: {
+              error: "some-error-code",
+              error_description: "some-error-description",
+            },
+          }),
+
+          onCallback: mockOnCallback,
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("code", code)
+        url.searchParams.set("state", state)
+
+        const headers = new Headers()
+        const transactionState: TransactionState = {
+          nonce: "nonce-value",
+          maxAge: 3600,
+          codeVerifier: "code-verifier",
+          responseType: "code",
+          state: state,
+          returnTo: "/dashboard",
+        }
+        headers.set(
+          "cookie",
+          `__txn_${state}=${await encrypt(transactionState, secret)}`
+        )
+        const request = new NextRequest(url, {
+          method: "GET",
+          headers,
+        })
+
+        // validate the new response redirect
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/error-page")
+
+        expect(mockOnCallback).toHaveBeenCalledWith(
+          expect.any(Error),
+          {
+            returnTo: transactionState.returnTo,
+          },
+          null
+        )
+        expect(mockOnCallback.mock.calls[0][0].code).toEqual(
+          "authorization_code_grant_error"
+        )
+
+        // validate the session cookie has not been set
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeUndefined()
+      })
+    })
+
+    describe("beforeSessionSaved hook", async () => {
+      it("should use the return value of the hook as the session data", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const state = "transaction-state"
+        const code = "auth-code"
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          beforeSessionSaved: async (session) => {
+            return {
+              ...session,
+              user: {
+                sub: "user_123",
+                name: "John Doe",
+                email: "john@example.com",
+                custom: "value",
+              },
+            }
+          },
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("code", code)
+        url.searchParams.set("state", state)
+
+        const headers = new Headers()
+        const transactionState: TransactionState = {
+          nonce: "nonce-value",
+          maxAge: 3600,
+          codeVerifier: "code-verifier",
+          responseType: "code",
+          state: state,
+          returnTo: "/dashboard",
+        }
+        headers.set(
+          "cookie",
+          `__txn_${state}=${await encrypt(transactionState, secret)}`
+        )
+        const request = new NextRequest(url, {
+          method: "GET",
+          headers,
+        })
+
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/dashboard")
+
+        // validate the session cookie
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeDefined()
+        const session = await decrypt(sessionCookie!.value, secret)
+        expect(session).toEqual({
+          user: {
+            sub: "user_123",
+            name: "John Doe",
+            email: "john@example.com",
+            custom: "value",
+          },
+          tokenSet: {
+            accessToken: "at_123",
+            refreshToken: "rt_123",
+            expiresAt: expect.any(Number),
+          },
+          internal: {
+            sid: expect.any(String),
+            createdAt: expect.any(Number),
+          },
+        })
+      })
+
+      it("should not call the hook if the session is not established", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const mockBeforeSessionSaved = vi.fn()
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          beforeSessionSaved: mockBeforeSessionSaved,
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        const request = new NextRequest(url, {
+          method: "GET",
+        })
+
+        await authClient.handleCallback(request)
+        expect(mockBeforeSessionSaved).not.toHaveBeenCalled()
+      })
+
+      it("should not allow overwriting the internal session data", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const state = "transaction-state"
+        const code = "auth-code"
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+
+          // @ts-expect-error
+          beforeSessionSaved: async (session) => {
+            return {
+              ...session,
+              user: {
+                sub: "user_123",
+                name: "John Doe",
+                email: "john@example.com",
+                custom: "value",
+              },
+              internal: null,
+            }
+          },
+        })
+
+        const url = new URL("/auth/callback", appBaseUrl)
+        url.searchParams.set("code", code)
+        url.searchParams.set("state", state)
+
+        const headers = new Headers()
+        const transactionState: TransactionState = {
+          nonce: "nonce-value",
+          maxAge: 3600,
+          codeVerifier: "code-verifier",
+          responseType: "code",
+          state: state,
+          returnTo: "/dashboard",
+        }
+        headers.set(
+          "cookie",
+          `__txn_${state}=${await encrypt(transactionState, secret)}`
+        )
+        const request = new NextRequest(url, {
+          method: "GET",
+          headers,
+        })
+
+        const response = await authClient.handleCallback(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const redirectUrl = new URL(response.headers.get("Location")!)
+        expect(redirectUrl.pathname).toEqual("/dashboard")
+
+        // validate the session cookie
+        const sessionCookie = response.cookies.get("__session")
+        expect(sessionCookie).toBeDefined()
+        const session = await decrypt(sessionCookie!.value, secret)
+        expect(session).toEqual({
+          user: {
+            sub: "user_123",
+            name: "John Doe",
+            email: "john@example.com",
+            custom: "value",
+          },
+          tokenSet: {
+            accessToken: "at_123",
+            refreshToken: "rt_123",
+            expiresAt: expect.any(Number),
+          },
+          internal: {
+            sid: expect.any(String),
+            createdAt: expect.any(Number),
+          },
+        })
+      })
+    })
+  })
+
+  // describe("handleAccessToken", async () => {})
+
+  // describe("getTokenSet", async () => {})
 })
 
-const authorizationServerMetadata = {
+function getMockFetchImplementation({
+  tokenEndpointResponse,
+  audience,
+  nonce,
+}: {
+  tokenEndpointResponse?: oauth.TokenEndpointResponse | oauth.OAuth2Error
+  audience?: string
+  nonce?: string
+} = {}) {
+  // this function acts as a mock authorization server
+  return vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+    let url: URL
+    if (input instanceof Request) {
+      url = new URL(input.url)
+    } else {
+      url = new URL(input)
+    }
+
+    // JWKS
+    const alg = "RS256"
+    const { publicKey, privateKey } = await jose.generateKeyPair(alg)
+    const privateJwk = await jose.exportJWK(privateKey)
+    const publicJwk = await jose.exportJWK(publicKey)
+    const jwt = await new jose.SignJWT({
+      sid: "auth0-sid",
+      auth_time: Date.now(),
+      nonce: nonce ?? "nonce-value",
+      "https://example.com/custom_claim": "value",
+    })
+      .setProtectedHeader({ alg })
+      .setSubject("user_123")
+      .setIssuedAt()
+      .setIssuer(_authorizationServerMetadata.issuer)
+      .setAudience(audience ?? "client_123")
+      .setExpirationTime("2h")
+      .sign(privateKey)
+
+    if (url.pathname === "/oauth/token") {
+      return Response.json(
+        tokenEndpointResponse ?? {
+          token_type: "Bearer",
+          access_token: "at_123",
+          refresh_token: "rt_123",
+          id_token: jwt,
+          expires_in: 3600,
+        }
+      )
+    }
+
+    // discovery URL
+    if (url.pathname === "/.well-known/openid-configuration") {
+      return Response.json(_authorizationServerMetadata)
+    }
+
+    return new Response(null, { status: 404 })
+  })
+}
+
+const _authorizationServerMetadata = {
   issuer: "https://guabu.us.auth0.com/",
   authorization_endpoint: "https://guabu.us.auth0.com/authorize",
   token_endpoint: "https://guabu.us.auth0.com/oauth/token",

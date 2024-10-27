@@ -72,7 +72,6 @@ export interface AuthClientOptions {
   clientId: string
   clientSecret: string
   authorizationParameters?: AuthorizationParameters
-  authorizationServerMetadata?: oauth.AuthorizationServer
 
   secret: string
   appBaseUrl: string
@@ -80,6 +79,9 @@ export interface AuthClientOptions {
 
   beforeSessionSaved?: BeforeSessionSavedHook
   onCallback?: OnCallbackHook
+
+  // custom fetch implementation to allow for dependency injection
+  fetch?: typeof fetch
 }
 
 export class AuthClient {
@@ -87,10 +89,10 @@ export class AuthClient {
   private sessionStore: AbstractSessionStore
 
   private clientMetadata: oauth.Client
+  private clientSecret: string
   private issuer: string
   private redirectUri: URL
   private authorizationParameters: AuthorizationParameters
-  private authorizationServerMetadata?: oauth.AuthorizationServer
 
   private appBaseUrl: string
   private signInReturnToPath: string
@@ -98,22 +100,24 @@ export class AuthClient {
   private beforeSessionSaved?: BeforeSessionSavedHook
   private onCallback: OnCallbackHook
 
+  private fetch: typeof fetch
+
   constructor(options: AuthClientOptions) {
+    // dependencies
+    this.fetch = options.fetch || fetch
+
     // stores
     this.transactionStore = options.transactionStore
     this.sessionStore = options.sessionStore
 
     // authorization server
     this.issuer = `https://${options.domain}`
-    this.clientMetadata = {
-      client_id: options.clientId,
-      client_secret: options.clientSecret,
-    }
+    this.clientMetadata = { client_id: options.clientId }
+    this.clientSecret = options.clientSecret
     this.redirectUri = new URL("/auth/callback", options.appBaseUrl) // must be registed with the authorization server
     this.authorizationParameters = options.authorizationParameters || {
       scope: DEFAULT_SCOPES,
     }
-    this.authorizationServerMetadata = options.authorizationServerMetadata
 
     if (!this.authorizationParameters.scope) {
       this.authorizationParameters.scope = DEFAULT_SCOPES
@@ -319,19 +323,20 @@ export class AuthClient {
       return this.onCallback(discoveryError, onCallbackCtx, null)
     }
 
-    const codeGrantParams = oauth.validateAuthResponse(
-      authorizationServerMetadata,
-      this.clientMetadata,
-      req.nextUrl.searchParams,
-      transactionState.state
-    )
-
-    if (oauth.isOAuth2Error(codeGrantParams)) {
+    let codeGrantParams: URLSearchParams
+    try {
+      codeGrantParams = oauth.validateAuthResponse(
+        authorizationServerMetadata,
+        this.clientMetadata,
+        req.nextUrl.searchParams,
+        transactionState.state
+      )
+    } catch (e: any) {
       return this.onCallback(
         new AuthorizationError({
           cause: new OAuth2Error({
-            code: codeGrantParams.error,
-            message: codeGrantParams.error_description,
+            code: e.error,
+            message: e.error_description,
           }),
         }),
         onCallbackCtx,
@@ -342,25 +347,33 @@ export class AuthClient {
     const codeGrantResponse = await oauth.authorizationCodeGrantRequest(
       authorizationServerMetadata,
       this.clientMetadata,
+      oauth.ClientSecretPost(this.clientSecret),
       codeGrantParams,
       this.redirectUri.toString(),
-      transactionState.codeVerifier
+      transactionState.codeVerifier,
+      {
+        [oauth.customFetch]: this.fetch,
+      }
     )
 
-    const oidcRes = await oauth.processAuthorizationCodeOpenIDResponse(
-      authorizationServerMetadata,
-      this.clientMetadata,
-      codeGrantResponse,
-      transactionState.nonce,
-      transactionState.maxAge
-    )
-
-    if (oauth.isOAuth2Error(oidcRes)) {
+    let oidcRes: oauth.TokenEndpointResponse
+    try {
+      oidcRes = await oauth.processAuthorizationCodeResponse(
+        authorizationServerMetadata,
+        this.clientMetadata,
+        codeGrantResponse,
+        {
+          expectedNonce: transactionState.nonce,
+          maxAge: transactionState.maxAge,
+          requireIdToken: true,
+        }
+      )
+    } catch (e: any) {
       return this.onCallback(
         new AuthorizationCodeGrantError({
           cause: new OAuth2Error({
-            code: oidcRes.error,
-            message: oidcRes.error_description,
+            code: e.error,
+            message: e.error_description,
           }),
         }),
         onCallbackCtx,
@@ -368,7 +381,7 @@ export class AuthClient {
       )
     }
 
-    const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)
+    const idTokenClaims = oauth.getValidatedIdTokenClaims(oidcRes)!
     let session: SessionData = {
       user: idTokenClaims,
       tokenSet: {
@@ -474,25 +487,17 @@ export class AuthClient {
       const refreshTokenRes = await oauth.refreshTokenGrantRequest(
         authorizationServerMetadata,
         this.clientMetadata,
-        tokenSet.refreshToken
+        oauth.ClientSecretPost(this.clientSecret),
+        tokenSet.refreshToken,
+        {
+          [oauth.customFetch]: this.fetch,
+        }
       )
       const oauthRes = await oauth.processRefreshTokenResponse(
         authorizationServerMetadata,
         this.clientMetadata,
         refreshTokenRes
       )
-
-      if (oauth.isOAuth2Error(oauthRes)) {
-        return [
-          new RefreshTokenGrantError({
-            cause: new OAuth2Error({
-              code: oauthRes.error,
-              message: oauthRes.error_description,
-            }),
-          }),
-          null,
-        ]
-      }
 
       const accessTokenExpiresAt =
         Math.floor(Date.now() / 1000) + Number(oauthRes.expires_in)
@@ -520,15 +525,13 @@ export class AuthClient {
   private async discoverAuthorizationServerMetadata(): Promise<
     [null, oauth.AuthorizationServer] | [SdkError, null]
   > {
-    if (this.authorizationServerMetadata) {
-      return [null, this.authorizationServerMetadata]
-    }
-
     const issuer = new URL(this.issuer)
 
     try {
       const authorizationServerMetadata = await oauth
-        .discoveryRequest(issuer)
+        .discoveryRequest(issuer, {
+          [oauth.customFetch]: this.fetch,
+        })
         .then((response) => oauth.processDiscoveryResponse(issuer, response))
 
       return [null, authorizationServerMetadata]
@@ -548,7 +551,9 @@ export class AuthClient {
     _session: SessionData | null
   ) {
     if (error) {
-      return new NextResponse(error.message)
+      return new NextResponse(error.message, {
+        status: 500,
+      })
     }
 
     const res = NextResponse.redirect(
