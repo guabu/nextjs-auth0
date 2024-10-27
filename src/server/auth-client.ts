@@ -471,12 +471,12 @@ export class AuthClient {
     tokenSet: TokenSet
   ): Promise<[null, TokenSet] | [SdkError, null]> {
     // the access token has expired but we do not have a refresh token
-    if (!tokenSet.refreshToken && tokenSet.expiresAt < Date.now() / 1000) {
+    if (!tokenSet.refreshToken && tokenSet.expiresAt <= Date.now() / 1000) {
       return [new MissingRefreshToken(), null]
     }
 
     // the access token has expired and we have a refresh token
-    if (tokenSet.refreshToken && tokenSet.expiresAt < Date.now() / 1000) {
+    if (tokenSet.refreshToken && tokenSet.expiresAt <= Date.now() / 1000) {
       const [discoveryError, authorizationServerMetadata] =
         await this.discoverAuthorizationServerMetadata()
 

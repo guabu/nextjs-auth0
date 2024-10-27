@@ -1849,7 +1849,177 @@ describe("Authentication Client", async () => {
     })
   })
 
-  // describe("handleAccessToken", async () => {})
+  describe("handleAccessToken", async () => {
+    it("should return the access token if the user has a session", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) + 10 * 24 * 60 * 60 // expires in 10 days
+      const session: SessionData = {
+        user: {
+          sub: "user_123",
+          name: "John Doe",
+          email: "john@example.com",
+          picture: "https://example.com/john.jpg",
+        },
+        tokenSet: {
+          accessToken: "at_123",
+          refreshToken: "rt_123",
+          expiresAt,
+        },
+        internal: {
+          sid: "auth0-sid",
+          createdAt: Math.floor(Date.now() / 1000),
+        },
+      }
+      const sessionCookie = await encrypt(session, secret)
+      const headers = new Headers()
+      headers.append("cookie", `__session=${sessionCookie}`)
+      const request = new NextRequest(
+        new URL("/auth/access-token", appBaseUrl),
+        {
+          method: "GET",
+          headers,
+        }
+      )
+
+      const response = await authClient.handleAccessToken(request)
+      expect(response.status).toEqual(200)
+      expect(await response.json()).toEqual({
+        token: "at_123",
+        expires_at: expiresAt,
+      })
+    })
+
+    it("should return a 401 if the user does not have a session", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const request = new NextRequest(
+        new URL("/auth/access-token", appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
+
+      const response = await authClient.handleAccessToken(request)
+      expect(response.status).toEqual(401)
+      expect(await response.json()).toEqual({
+        error: "You are not authenticated.",
+      })
+    })
+
+    it("should return an error if obtaining a token set failed", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expires in 10 days
+      const session: SessionData = {
+        user: {
+          sub: "user_123",
+          name: "John Doe",
+          email: "john@example.com",
+          picture: "https://example.com/john.jpg",
+        },
+        tokenSet: {
+          accessToken: "at_123",
+          // refreshToken: "rt_123", // missing refresh token
+          expiresAt,
+        },
+        internal: {
+          sid: "auth0-sid",
+          createdAt: Math.floor(Date.now() / 1000),
+        },
+      }
+      const sessionCookie = await encrypt(session, secret)
+      const headers = new Headers()
+      headers.append("cookie", `__session=${sessionCookie}`)
+      const request = new NextRequest(
+        new URL("/auth/access-token", appBaseUrl),
+        {
+          method: "GET",
+          headers,
+        }
+      )
+
+      const response = await authClient.handleAccessToken(request)
+      expect(response.status).toEqual(401)
+      expect(await response.json()).toEqual({
+        error_code: "missing_refresh_token",
+        error:
+          "The access token has expired and a refresh token was not granted.",
+      })
+    })
+  })
 
   // describe("getTokenSet", async () => {})
 })
