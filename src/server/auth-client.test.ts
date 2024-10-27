@@ -1856,6 +1856,9 @@ describe("Authentication Client", async () => {
       const clientSecret = "client-secret"
       const appBaseUrl = "https://example.com"
 
+      const currentAccessToken = "at_123"
+      const newAccessToken = "at_456"
+
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -1874,10 +1877,17 @@ describe("Authentication Client", async () => {
         secret,
         appBaseUrl,
 
-        fetch: getMockFetchImplementation(),
+        fetch: getMockFetchImplementation({
+          tokenEndpointResponse: {
+            token_type: "Bearer",
+            access_token: newAccessToken,
+            expires_in: 86400, // expires in 10 days
+          } as oauth.TokenEndpointResponse,
+        }),
       })
 
-      const expiresAt = Math.floor(Date.now() / 1000) + 10 * 24 * 60 * 60 // expires in 10 days
+      // we want to ensure the session is expired to return the refreshed access token
+      const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
       const session: SessionData = {
         user: {
           sub: "user_123",
@@ -1886,7 +1896,7 @@ describe("Authentication Client", async () => {
           picture: "https://example.com/john.jpg",
         },
         tokenSet: {
-          accessToken: "at_123",
+          accessToken: currentAccessToken,
           refreshToken: "rt_123",
           expiresAt,
         },
@@ -1909,9 +1919,17 @@ describe("Authentication Client", async () => {
       const response = await authClient.handleAccessToken(request)
       expect(response.status).toEqual(200)
       expect(await response.json()).toEqual({
-        token: "at_123",
-        expires_at: expiresAt,
+        token: newAccessToken,
+        expires_at: expect.any(Number),
       })
+
+      // validate that the session cookie has been updated
+      const updatedSessionCookie = response.cookies.get("__session")
+      const updatedSession = await decrypt<SessionData>(
+        updatedSessionCookie!.value,
+        secret
+      )
+      expect(updatedSession.tokenSet.accessToken).toEqual(newAccessToken)
     })
 
     it("should return a 401 if the user does not have a session", async () => {
@@ -1953,6 +1971,10 @@ describe("Authentication Client", async () => {
       expect(await response.json()).toEqual({
         error: "You are not authenticated.",
       })
+
+      // validate that the session cookie has not been set
+      const sessionCookie = response.cookies.get("__session")
+      expect(sessionCookie).toBeUndefined()
     })
 
     it("should return an error if obtaining a token set failed", async () => {
@@ -2018,10 +2040,191 @@ describe("Authentication Client", async () => {
         error:
           "The access token has expired and a refresh token was not granted.",
       })
+
+      // validate that the session cookie has not been set
+      expect(response.cookies.get("__session")).toBeUndefined()
     })
   })
 
-  // describe("getTokenSet", async () => {})
+  describe("getTokenSet", async () => {
+    it("should return the access token if it has not expired", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) + 10 * 24 * 60 * 60 // expires in 10 days
+      const tokenSet = {
+        accessToken: "at_123",
+        refreshToken: "rt_123",
+        expiresAt,
+      }
+
+      const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
+      expect(error).toBeNull()
+      expect(updatedTokenSet).toEqual(tokenSet)
+    })
+
+    it("should return an error if the token set does not contain a refresh token and the access token has expired", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation(),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
+      const tokenSet = {
+        accessToken: "at_123",
+        expiresAt,
+      }
+
+      const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
+      expect(error?.code).toEqual("missing_refresh_token")
+      expect(updatedTokenSet).toBeNull()
+    })
+
+    it("should refresh the access token if it expired", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          tokenEndpointResponse: {
+            token_type: "Bearer",
+            access_token: "at_123",
+            expires_in: 86400, // expires in 10 days
+          } as oauth.TokenEndpointResponse,
+        }),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
+      const tokenSet = {
+        accessToken: "at_123",
+        refreshToken: "rt_123",
+        expiresAt,
+      }
+
+      const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
+      expect(error).toBeNull()
+      expect(updatedTokenSet).toEqual({
+        accessToken: "at_123",
+        refreshToken: "rt_123",
+        expiresAt: expect.any(Number),
+      })
+    })
+
+    describe("rotating refresh token", async () => {
+      it("should refresh the access token if it expired along with the updated refresh token", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation({
+            tokenEndpointResponse: {
+              token_type: "Bearer",
+              access_token: "at_123",
+              refresh_token: "rt_456",
+              expires_in: 86400, // expires in 10 days
+            } as oauth.TokenEndpointResponse,
+          }),
+        })
+
+        const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
+        const tokenSet = {
+          accessToken: "at_123",
+          refreshToken: "rt_123",
+          expiresAt,
+        }
+
+        const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
+        expect(error).toBeNull()
+        expect(updatedTokenSet).toEqual({
+          accessToken: "at_123",
+          refreshToken: "rt_456",
+          expiresAt: expect.any(Number),
+        })
+      })
+    })
+  })
 })
 
 function getMockFetchImplementation({
@@ -2068,7 +2271,7 @@ function getMockFetchImplementation({
           access_token: "at_123",
           refresh_token: "rt_123",
           id_token: jwt,
-          expires_in: 3600,
+          expires_in: 86400, // expires in 10 days
         }
       )
     }
