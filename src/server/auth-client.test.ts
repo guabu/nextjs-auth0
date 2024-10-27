@@ -1124,7 +1124,7 @@ describe("Authentication Client", async () => {
 
       const response = await authClient.handleCallback(request)
       expect(response.status).toEqual(500)
-      expect(await response.text()).toEqual("The state parameter is missing.")
+      expect(await response.text()).toEqual("The state parameter is invalid.")
     })
 
     it("should return an error when there is an error authorizing the user", async () => {
@@ -1477,7 +1477,7 @@ describe("Authentication Client", async () => {
         expect(redirectUrl.pathname).toEqual("/error-page")
 
         expect(mockOnCallback).toHaveBeenCalledWith(expect.any(Error), {}, null)
-        expect(mockOnCallback.mock.calls[0][0].code).toEqual("missing_state")
+        expect(mockOnCallback.mock.calls[0][0].code).toEqual("invalid_state")
 
         // validate the session cookie has not been set
         const sessionCookie = response.cookies.get("__session")

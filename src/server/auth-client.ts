@@ -5,6 +5,7 @@ import {
   AuthorizationCodeGrantError,
   AuthorizationError,
   DiscoveryError,
+  InvalidStateError,
   MissingRefreshToken,
   MissingStateError,
   OAuth2Error,
@@ -309,7 +310,7 @@ export class AuthClient {
 
     const transactionState = await this.transactionStore.get(req.cookies, state)
     if (!transactionState) {
-      return this.onCallback(new MissingStateError(), {}, null)
+      return this.onCallback(new InvalidStateError(), {}, null)
     }
 
     const onCallbackCtx: OnCallbackContext = {
@@ -493,11 +494,25 @@ export class AuthClient {
           [oauth.customFetch]: this.fetch,
         }
       )
-      const oauthRes = await oauth.processRefreshTokenResponse(
-        authorizationServerMetadata,
-        this.clientMetadata,
-        refreshTokenRes
-      )
+
+      let oauthRes: oauth.TokenEndpointResponse
+      try {
+        oauthRes = await oauth.processRefreshTokenResponse(
+          authorizationServerMetadata,
+          this.clientMetadata,
+          refreshTokenRes
+        )
+      } catch (e: any) {
+        return [
+          new RefreshTokenGrantError({
+            cause: new OAuth2Error({
+              code: e.error,
+              message: e.error_description,
+            }),
+          }),
+          null,
+        ]
+      }
 
       const accessTokenExpiresAt =
         Math.floor(Date.now() / 1000) + Number(oauthRes.expires_in)
