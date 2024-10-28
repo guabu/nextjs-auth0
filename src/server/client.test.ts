@@ -15,16 +15,27 @@ describe("Auth0Client", () => {
     process.env = originalEnv
   })
 
-  it("should not throw an error if all the required parameters are provided", () => {
+  it("should not throw an error if all the required parameters are provided — as env vars", () => {
     process.env.AUTH0_DOMAIN = "example.us.auth0.com"
     process.env.AUTH0_CLIENT_ID = "clientId"
     process.env.AUTH0_CLIENT_SECRET = "clientSecret"
     process.env.AUTH0_SECRET = "secret"
     process.env.APP_BASE_URL = "https://example.com"
     process.env.NODE_ENV = "production"
-    expect(() => new Auth0Client()).not.toThrow(
-      /The AUTH0_DOMAIN environment variable or domain option is required/i
-    )
+    expect(() => new Auth0Client()).not.toThrow()
+  })
+
+  it("should not throw an error if all the required parameters are provided — as options", () => {
+    expect(
+      () =>
+        new Auth0Client({
+          domain: "example.us.auth0.com",
+          clientId: "clientId",
+          clientSecret: "clientSecret",
+          secret: "secret",
+          appBaseUrl: "https://example.com",
+        })
+    ).not.toThrow()
   })
 
   it("should throw an error if the domain is not provided", () => {
