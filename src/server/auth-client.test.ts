@@ -10,6 +10,16 @@ import { SessionData } from "./session/abstract-session-store"
 import { StatelessSessionStore } from "./session/stateless-session-store"
 import { TransactionState, TransactionStore } from "./transaction-store"
 
+const DEFAULT = {
+  domain: "guabu.us.auth0.com",
+  clientId: "client_123",
+  clientSecret: "client-secret",
+  appBaseUrl: "https://example.com",
+  sid: "auth0-sid",
+  accessToken: "at_123",
+  refreshToken: "rt_123",
+}
+
 describe("Authentication Client", async () => {
   describe("initialization", async () => {
     it("should throw an error if the openid scope is not included", async () => {
@@ -27,12 +37,12 @@ describe("Authentication Client", async () => {
             transactionStore,
             sessionStore,
 
-            domain: "guabu.us.auth0.com",
-            clientId: "123",
-            clientSecret: "123",
+            domain: DEFAULT.domain,
+            clientId: DEFAULT.clientId,
+            clientSecret: DEFAULT.clientSecret,
 
             secret,
-            appBaseUrl: "https://example.com",
+            appBaseUrl: DEFAULT.appBaseUrl,
 
             authorizationParameters: {
               scope: "profile email",
@@ -57,12 +67,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain: "guabu.us.auth0.com",
-        clientId: "123",
-        clientSecret: "123",
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl: "https://example.com",
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -86,12 +96,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain: "guabu.us.auth0.com",
-        clientId: "123",
-        clientSecret: "123",
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl: "https://example.com",
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -115,12 +125,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain: "guabu.us.auth0.com",
-        clientId: "123",
-        clientSecret: "123",
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl: "https://example.com",
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -144,12 +154,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain: "guabu.us.auth0.com",
-        clientId: "123",
-        clientSecret: "123",
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl: "https://example.com",
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -173,12 +183,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain: "guabu.us.auth0.com",
-        clientId: "123",
-        clientSecret: "123",
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl: "https://example.com",
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -207,12 +217,12 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain: "guabu.us.auth0.com",
-          clientId: "123",
-          clientSecret: "123",
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl: "https://example.com",
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
@@ -220,12 +230,12 @@ describe("Authentication Client", async () => {
         const session: SessionData = {
           user: { sub: "user_123" },
           tokenSet: {
-            accessToken: "at_123",
-            refreshToken: "rt_123",
+            accessToken: DEFAULT.accessToken,
+            refreshToken: DEFAULT.refreshToken,
             expiresAt: 123456,
           },
           internal: {
-            sid: "auth0-sid",
+            sid: DEFAULT.sid,
             createdAt: Math.floor(Date.now() / 1000),
           },
         }
@@ -270,7 +280,7 @@ describe("Authentication Client", async () => {
             expiresAt: expect.any(Number),
           },
           internal: {
-            sid: "auth0-sid",
+            sid: DEFAULT.sid,
             createdAt: expect.any(Number),
           },
         })
@@ -295,12 +305,12 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain: "guabu.us.auth0.com",
-          clientId: "123",
-          clientSecret: "123",
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl: "https://example.com",
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
@@ -338,12 +348,12 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain: "guabu.us.auth0.com",
-          clientId: "123",
-          clientSecret: "123",
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl: "https://example.com",
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
@@ -351,12 +361,12 @@ describe("Authentication Client", async () => {
         const session: SessionData = {
           user: { sub: "user_123" },
           tokenSet: {
-            accessToken: "at_123",
-            refreshToken: "rt_123",
+            accessToken: DEFAULT.accessToken,
+            refreshToken: DEFAULT.refreshToken,
             expiresAt: 123456,
           },
           internal: {
-            sid: "auth0-sid",
+            sid: DEFAULT.sid,
             createdAt: Math.floor(Date.now() / 1000),
           },
         }
@@ -390,11 +400,6 @@ describe("Authentication Client", async () => {
 
   describe("handleLogin", async () => {
     it("should redirect to the authorization server and store the transaction state", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -406,30 +411,35 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
-      const request = new NextRequest(new URL("/auth/login", appBaseUrl), {
-        method: "GET",
-      })
+      const request = new NextRequest(
+        new URL("/auth/login", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
 
       const response = await authClient.handleLogin(request)
       expect(response.status).toEqual(307)
       expect(response.headers.get("Location")).not.toBeNull()
 
       const authorizationUrl = new URL(response.headers.get("Location")!)
-      expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+      expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
       // query parameters
-      expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+      expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+        DEFAULT.clientId
+      )
       expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
-        `${appBaseUrl}/auth/callback`
+        `${DEFAULT.appBaseUrl}/auth/callback`
       )
       expect(authorizationUrl.searchParams.get("response_type")).toEqual("code")
       expect(authorizationUrl.searchParams.get("code_challenge")).not.toBeNull()
@@ -457,11 +467,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the discovery endpoint could not be fetched", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -473,21 +478,24 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           discoveryResponse: new Response(null, { status: 500 }),
         }),
       })
 
-      const request = new NextRequest(new URL("/auth/login", appBaseUrl), {
-        method: "GET",
-      })
+      const request = new NextRequest(
+        new URL("/auth/login", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
 
       const response = await authClient.handleLogin(request)
       expect(response.status).toEqual(500)
@@ -498,11 +506,6 @@ describe("Authentication Client", async () => {
 
     describe("authorization parameters", async () => {
       it("should forward the query parameters to the authorization server", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const secret = await generateSecret(32)
         const transactionStore = new TransactionStore({
           secret,
@@ -514,16 +517,16 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
-        const loginUrl = new URL("/auth/login", appBaseUrl)
+        const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
         loginUrl.searchParams.set("custom_param", "custom_value")
         loginUrl.searchParams.set("audience", "urn:mystore:api")
         const request = new NextRequest(loginUrl, {
@@ -535,12 +538,14 @@ describe("Authentication Client", async () => {
         expect(response.headers.get("Location")).not.toBeNull()
 
         const authorizationUrl = new URL(response.headers.get("Location")!)
-        expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+        expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
         // query parameters
-        expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+        expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+          DEFAULT.clientId
+        )
         expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
-          `${appBaseUrl}/auth/callback`
+          `${DEFAULT.appBaseUrl}/auth/callback`
         )
         expect(authorizationUrl.searchParams.get("response_type")).toEqual(
           "code"
@@ -578,11 +583,6 @@ describe("Authentication Client", async () => {
       })
 
       it("should forward the configured authorization parameters to the authorization server", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const secret = await generateSecret(32)
         const transactionStore = new TransactionStore({
           secret,
@@ -594,9 +594,9 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
           authorizationParameters: {
             scope: "openid profile email offline_access custom_scope",
             audience: "urn:mystore:api",
@@ -604,11 +604,11 @@ describe("Authentication Client", async () => {
           },
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
-        const loginUrl = new URL("/auth/login", appBaseUrl)
+        const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
         const request = new NextRequest(loginUrl, {
           method: "GET",
         })
@@ -618,12 +618,14 @@ describe("Authentication Client", async () => {
         expect(response.headers.get("Location")).not.toBeNull()
 
         const authorizationUrl = new URL(response.headers.get("Location")!)
-        expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+        expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
         // query parameters
-        expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+        expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+          DEFAULT.clientId
+        )
         expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
-          `${appBaseUrl}/auth/callback`
+          `${DEFAULT.appBaseUrl}/auth/callback`
         )
         expect(authorizationUrl.searchParams.get("response_type")).toEqual(
           "code"
@@ -648,11 +650,6 @@ describe("Authentication Client", async () => {
       })
 
       it("should override the configured authorization parameters with the query parameters", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const secret = await generateSecret(32)
         const transactionStore = new TransactionStore({
           secret,
@@ -664,20 +661,20 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
           authorizationParameters: {
             audience: "from-config",
             custom_param: "from-config",
           },
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
-        const loginUrl = new URL("/auth/login", appBaseUrl)
+        const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
         loginUrl.searchParams.set("custom_param", "from-query")
         loginUrl.searchParams.set("audience", "from-query")
         const request = new NextRequest(loginUrl, {
@@ -689,12 +686,14 @@ describe("Authentication Client", async () => {
         expect(response.headers.get("Location")).not.toBeNull()
 
         const authorizationUrl = new URL(response.headers.get("Location")!)
-        expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+        expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
         // query parameters
-        expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+        expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+          DEFAULT.clientId
+        )
         expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
-          `${appBaseUrl}/auth/callback`
+          `${DEFAULT.appBaseUrl}/auth/callback`
         )
         expect(authorizationUrl.searchParams.get("response_type")).toEqual(
           "code"
@@ -719,11 +718,6 @@ describe("Authentication Client", async () => {
       })
 
       it("should not override internal authorization parameter values", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const secret = await generateSecret(32)
         const transactionStore = new TransactionStore({
           secret,
@@ -735,9 +729,9 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
           authorizationParameters: {
             client_id: "from-config",
             redirect_uri: "from-config",
@@ -753,11 +747,11 @@ describe("Authentication Client", async () => {
           },
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
-        const loginUrl = new URL("/auth/login", appBaseUrl)
+        const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
         loginUrl.searchParams.set("client_id", "from-query")
         loginUrl.searchParams.set("redirect_uri", "from-query")
         loginUrl.searchParams.set("response_type", "from-query")
@@ -776,12 +770,14 @@ describe("Authentication Client", async () => {
         expect(response.headers.get("Location")).not.toBeNull()
 
         const authorizationUrl = new URL(response.headers.get("Location")!)
-        expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+        expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
         // query parameters
-        expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+        expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+          DEFAULT.clientId
+        )
         expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
-          `${appBaseUrl}/auth/callback`
+          `${DEFAULT.appBaseUrl}/auth/callback`
         )
         expect(authorizationUrl.searchParams.get("response_type")).toEqual(
           "code"
@@ -807,11 +803,6 @@ describe("Authentication Client", async () => {
       })
 
       it("should not forward parameters with null or undefined values", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const secret = await generateSecret(32)
         const transactionStore = new TransactionStore({
           secret,
@@ -823,9 +814,9 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
           authorizationParameters: {
             scope: "openid profile email offline_access custom_scope",
             audience: null,
@@ -833,11 +824,11 @@ describe("Authentication Client", async () => {
           },
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
         })
-        const loginUrl = new URL("/auth/login", appBaseUrl)
+        const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
         const request = new NextRequest(loginUrl, {
           method: "GET",
         })
@@ -847,12 +838,14 @@ describe("Authentication Client", async () => {
         expect(response.headers.get("Location")).not.toBeNull()
 
         const authorizationUrl = new URL(response.headers.get("Location")!)
-        expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+        expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
         // query parameters
-        expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+        expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+          DEFAULT.clientId
+        )
         expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
-          `${appBaseUrl}/auth/callback`
+          `${DEFAULT.appBaseUrl}/auth/callback`
         )
         expect(authorizationUrl.searchParams.get("response_type")).toEqual(
           "code"
@@ -874,11 +867,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should store the maxAge in the transaction state and forward it to the authorization server", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -890,19 +878,19 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
         authorizationParameters: {
           max_age: 3600,
         },
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
-      const loginUrl = new URL("/auth/login", appBaseUrl)
+      const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
       const request = new NextRequest(loginUrl, {
         method: "GET",
       })
@@ -928,11 +916,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should store the returnTo path in the transaction state", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -944,16 +927,16 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
-      const loginUrl = new URL("/auth/login", appBaseUrl)
+      const loginUrl = new URL("/auth/login", DEFAULT.appBaseUrl)
       loginUrl.searchParams.set("returnTo", "/dashboard")
       const request = new NextRequest(loginUrl, {
         method: "GET",
@@ -979,11 +962,6 @@ describe("Authentication Client", async () => {
 
   describe("handleLogout", async () => {
     it("should redirect to the authorization server logout URL with the correct params", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -995,12 +973,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -1009,37 +987,42 @@ describe("Authentication Client", async () => {
       const session: SessionData = {
         user: { sub: "user_123" },
         tokenSet: {
-          accessToken: "at_123",
-          refreshToken: "rt_123",
+          accessToken: DEFAULT.accessToken,
+          refreshToken: DEFAULT.refreshToken,
           expiresAt: 123456,
         },
         internal: {
-          sid: "auth0-sid",
+          sid: DEFAULT.sid,
           createdAt: Math.floor(Date.now() / 1000),
         },
       }
       const sessionCookie = await encrypt(session, secret)
       const headers = new Headers()
       headers.append("cookie", `__session=${sessionCookie}`)
-      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
-        method: "GET",
-        headers,
-      })
+      const request = new NextRequest(
+        new URL("/auth/logout", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+          headers,
+        }
+      )
 
       const response = await authClient.handleLogout(request)
       expect(response.status).toEqual(307)
       expect(response.headers.get("Location")).not.toBeNull()
 
       const authorizationUrl = new URL(response.headers.get("Location")!)
-      expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+      expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
       // query parameters
-      expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+      expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+        DEFAULT.clientId
+      )
       expect(
         authorizationUrl.searchParams.get("post_logout_redirect_uri")
-      ).toEqual(`${appBaseUrl}`)
+      ).toEqual(`${DEFAULT.appBaseUrl}`)
       expect(authorizationUrl.searchParams.get("logout_hint")).toEqual(
-        "auth0-sid"
+        DEFAULT.sid
       )
 
       // session cookie is cleared
@@ -1049,11 +1032,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should not include the logout_hint parameter if a session does not exist", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -1065,32 +1043,37 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
-      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
-        method: "GET",
-      })
+      const request = new NextRequest(
+        new URL("/auth/logout", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
 
       const response = await authClient.handleLogout(request)
       expect(response.status).toEqual(307)
       expect(response.headers.get("Location")).not.toBeNull()
 
       const authorizationUrl = new URL(response.headers.get("Location")!)
-      expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+      expect(authorizationUrl.origin).toEqual(`https://${DEFAULT.domain}`)
 
       // query parameters
-      expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+      expect(authorizationUrl.searchParams.get("client_id")).toEqual(
+        DEFAULT.clientId
+      )
       expect(
         authorizationUrl.searchParams.get("post_logout_redirect_uri")
-      ).toEqual(`${appBaseUrl}`)
+      ).toEqual(`${DEFAULT.appBaseUrl}`)
       expect(authorizationUrl.searchParams.get("logout_hint")).toBeNull()
 
       // session cookie is cleared
@@ -1100,11 +1083,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the client does not have RP-Initiated Logout enabled", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -1116,12 +1094,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           discoveryResponse: Response.json(
@@ -1139,9 +1117,12 @@ describe("Authentication Client", async () => {
         }),
       })
 
-      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
-        method: "GET",
-      })
+      const request = new NextRequest(
+        new URL("/auth/logout", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
 
       const response = await authClient.handleLogout(request)
       expect(response.status).toEqual(500)
@@ -1151,11 +1132,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the discovery endpoint could not be fetched", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -1167,21 +1143,24 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           discoveryResponse: new Response(null, { status: 500 }),
         }),
       })
 
-      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
-        method: "GET",
-      })
+      const request = new NextRequest(
+        new URL("/auth/logout", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
 
       const response = await authClient.handleLogout(request)
       expect(response.status).toEqual(500)
@@ -1193,11 +1172,6 @@ describe("Authentication Client", async () => {
 
   describe("handleProfile", async () => {
     it("should return the user attributes stored in the session", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -1209,12 +1183,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -1228,22 +1202,25 @@ describe("Authentication Client", async () => {
           picture: "https://example.com/john.jpg",
         },
         tokenSet: {
-          accessToken: "at_123",
-          refreshToken: "rt_123",
+          accessToken: DEFAULT.accessToken,
+          refreshToken: DEFAULT.refreshToken,
           expiresAt: 123456,
         },
         internal: {
-          sid: "auth0-sid",
+          sid: DEFAULT.sid,
           createdAt: Math.floor(Date.now() / 1000),
         },
       }
       const sessionCookie = await encrypt(session, secret)
       const headers = new Headers()
       headers.append("cookie", `__session=${sessionCookie}`)
-      const request = new NextRequest(new URL("/auth/profile", appBaseUrl), {
-        method: "GET",
-        headers,
-      })
+      const request = new NextRequest(
+        new URL("/auth/profile", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+          headers,
+        }
+      )
 
       const response = await authClient.handleProfile(request)
       expect(response.status).toEqual(200)
@@ -1256,11 +1233,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return a 401 if the user is not authenticated", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -1272,19 +1244,22 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
-      const request = new NextRequest(new URL("/auth/profile", appBaseUrl), {
-        method: "GET",
-      })
+      const request = new NextRequest(
+        new URL("/auth/profile", DEFAULT.appBaseUrl),
+        {
+          method: "GET",
+        }
+      )
 
       const response = await authClient.handleProfile(request)
       expect(response.status).toEqual(401)
@@ -1294,11 +1269,6 @@ describe("Authentication Client", async () => {
 
   describe("handleCallback", async () => {
     it("should establish a session — happy path", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const state = "transaction-state"
       const code = "auth-code"
 
@@ -1313,17 +1283,17 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
-      const url = new URL("/auth/callback", appBaseUrl)
+      const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
       url.searchParams.set("code", code)
       url.searchParams.set("state", state)
 
@@ -1361,8 +1331,8 @@ describe("Authentication Client", async () => {
           sub: "user_123",
         },
         tokenSet: {
-          accessToken: "at_123",
-          refreshToken: "rt_123",
+          accessToken: DEFAULT.accessToken,
+          refreshToken: DEFAULT.refreshToken,
           expiresAt: expect.any(Number),
         },
         internal: {
@@ -1381,11 +1351,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the state parameter is missing", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const code = "auth-code"
 
       const secret = await generateSecret(32)
@@ -1399,17 +1364,17 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
-      const url = new URL("/auth/callback", appBaseUrl)
+      const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
       url.searchParams.set("code", code)
 
       const request = new NextRequest(url, {
@@ -1422,11 +1387,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the transaction state could not be found", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const state = "transaction-state"
       const code = "auth-code"
 
@@ -1441,17 +1401,17 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
-      const url = new URL("/auth/callback", appBaseUrl)
+      const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
       url.searchParams.set("code", code)
       url.searchParams.set("state", state)
 
@@ -1479,11 +1439,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error when there is an error authorizing the user", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const state = "transaction-state"
 
       const secret = await generateSecret(32)
@@ -1497,17 +1452,17 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
-      const url = new URL("/auth/callback", appBaseUrl)
+      const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
       url.searchParams.set("error", "some-error-code")
       url.searchParams.set("error_description", "some-error-description")
       url.searchParams.set("state", state)
@@ -1538,11 +1493,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if there was an error during the code exchange", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const state = "transaction-state"
       const code = "auth-code"
 
@@ -1557,12 +1507,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           tokenEndpointResponse: {
@@ -1572,7 +1522,7 @@ describe("Authentication Client", async () => {
         }),
       })
 
-      const url = new URL("/auth/callback", appBaseUrl)
+      const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
       url.searchParams.set("code", code)
       url.searchParams.set("state", state)
 
@@ -1602,11 +1552,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the discovery endpoint could not be fetched", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const state = "transaction-state"
       const code = "auth-code"
 
@@ -1621,19 +1566,19 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           discoveryResponse: new Response(null, { status: 500 }),
         }),
       })
 
-      const url = new URL("/auth/callback", appBaseUrl)
+      const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
       url.searchParams.set("code", code)
       url.searchParams.set("state", state)
 
@@ -1664,18 +1609,13 @@ describe("Authentication Client", async () => {
 
     describe("onCallback hook", async () => {
       it("should be called with the session data if the session is established", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const state = "transaction-state"
         const code = "auth-code"
 
         const mockOnCallback = vi
           .fn()
           .mockResolvedValue(
-            NextResponse.redirect(new URL("/other-path", appBaseUrl))
+            NextResponse.redirect(new URL("/other-path", DEFAULT.appBaseUrl))
           )
 
         const secret = await generateSecret(32)
@@ -1689,19 +1629,19 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
           onCallback: mockOnCallback,
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("code", code)
         url.searchParams.set("state", state)
 
@@ -1734,8 +1674,8 @@ describe("Authentication Client", async () => {
             sub: "user_123",
           },
           tokenSet: {
-            accessToken: "at_123",
-            refreshToken: "rt_123",
+            accessToken: DEFAULT.accessToken,
+            refreshToken: DEFAULT.refreshToken,
             expiresAt: expect.any(Number),
           },
           internal: {
@@ -1761,17 +1701,12 @@ describe("Authentication Client", async () => {
       })
 
       it("should be called with an error if the state parameter is missing", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const code = "auth-code"
 
         const mockOnCallback = vi
           .fn()
           .mockResolvedValue(
-            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+            NextResponse.redirect(new URL("/error-page", DEFAULT.appBaseUrl))
           )
 
         const secret = await generateSecret(32)
@@ -1785,19 +1720,19 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
           onCallback: mockOnCallback,
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("code", code)
 
         const request = new NextRequest(url, {
@@ -1821,18 +1756,13 @@ describe("Authentication Client", async () => {
       })
 
       it("should be called with an error if the transaction state could not be found", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const state = "transaction-state"
         const code = "auth-code"
 
         const mockOnCallback = vi
           .fn()
           .mockResolvedValue(
-            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+            NextResponse.redirect(new URL("/error-page", DEFAULT.appBaseUrl))
           )
 
         const secret = await generateSecret(32)
@@ -1846,19 +1776,19 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
           onCallback: mockOnCallback,
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("code", code)
         url.searchParams.set("state", state)
 
@@ -1897,18 +1827,12 @@ describe("Authentication Client", async () => {
       })
 
       it("should be called with an error when there is an error authorizing the user", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const state = "transaction-state"
-        const code = "auth-code"
 
         const mockOnCallback = vi
           .fn()
           .mockResolvedValue(
-            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+            NextResponse.redirect(new URL("/error-page", DEFAULT.appBaseUrl))
           )
 
         const secret = await generateSecret(32)
@@ -1922,19 +1846,19 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
           onCallback: mockOnCallback,
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("error", "some-error-code")
         url.searchParams.set("error_description", "some-error-description")
         url.searchParams.set("state", state)
@@ -1982,18 +1906,13 @@ describe("Authentication Client", async () => {
       })
 
       it("should be called with an error if there was an error during the code exchange", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const state = "transaction-state"
         const code = "auth-code"
 
         const mockOnCallback = vi
           .fn()
           .mockResolvedValue(
-            NextResponse.redirect(new URL("/error-page", appBaseUrl))
+            NextResponse.redirect(new URL("/error-page", DEFAULT.appBaseUrl))
           )
 
         const secret = await generateSecret(32)
@@ -2007,12 +1926,12 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation({
             tokenEndpointResponse: {
@@ -2024,7 +1943,7 @@ describe("Authentication Client", async () => {
           onCallback: mockOnCallback,
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("code", code)
         url.searchParams.set("state", state)
 
@@ -2073,11 +1992,6 @@ describe("Authentication Client", async () => {
 
     describe("beforeSessionSaved hook", async () => {
       it("should use the return value of the hook as the session data", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const state = "transaction-state"
         const code = "auth-code"
 
@@ -2092,12 +2006,12 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
@@ -2114,7 +2028,7 @@ describe("Authentication Client", async () => {
           },
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("code", code)
         url.searchParams.set("state", state)
 
@@ -2155,8 +2069,8 @@ describe("Authentication Client", async () => {
             custom: "value",
           },
           tokenSet: {
-            accessToken: "at_123",
-            refreshToken: "rt_123",
+            accessToken: DEFAULT.accessToken,
+            refreshToken: DEFAULT.refreshToken,
             expiresAt: expect.any(Number),
           },
           internal: {
@@ -2167,11 +2081,6 @@ describe("Authentication Client", async () => {
       })
 
       it("should not call the hook if the session is not established", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const mockBeforeSessionSaved = vi.fn()
 
         const secret = await generateSecret(32)
@@ -2185,19 +2094,19 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
           beforeSessionSaved: mockBeforeSessionSaved,
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         const request = new NextRequest(url, {
           method: "GET",
         })
@@ -2207,11 +2116,6 @@ describe("Authentication Client", async () => {
       })
 
       it("should not allow overwriting the internal session data", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const state = "transaction-state"
         const code = "auth-code"
 
@@ -2226,12 +2130,12 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation(),
 
@@ -2250,7 +2154,7 @@ describe("Authentication Client", async () => {
           },
         })
 
-        const url = new URL("/auth/callback", appBaseUrl)
+        const url = new URL("/auth/callback", DEFAULT.appBaseUrl)
         url.searchParams.set("code", code)
         url.searchParams.set("state", state)
 
@@ -2291,8 +2195,8 @@ describe("Authentication Client", async () => {
             custom: "value",
           },
           tokenSet: {
-            accessToken: "at_123",
-            refreshToken: "rt_123",
+            accessToken: DEFAULT.accessToken,
+            refreshToken: DEFAULT.refreshToken,
             expiresAt: expect.any(Number),
           },
           internal: {
@@ -2306,12 +2210,7 @@ describe("Authentication Client", async () => {
 
   describe("handleAccessToken", async () => {
     it("should return the access token if the user has a session", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
-      const currentAccessToken = "at_123"
+      const currentAccessToken = DEFAULT.accessToken
       const newAccessToken = "at_456"
 
       const secret = await generateSecret(32)
@@ -2325,12 +2224,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           tokenEndpointResponse: {
@@ -2352,11 +2251,11 @@ describe("Authentication Client", async () => {
         },
         tokenSet: {
           accessToken: currentAccessToken,
-          refreshToken: "rt_123",
+          refreshToken: DEFAULT.refreshToken,
           expiresAt,
         },
         internal: {
-          sid: "auth0-sid",
+          sid: DEFAULT.sid,
           createdAt: Math.floor(Date.now() / 1000),
         },
       }
@@ -2364,7 +2263,7 @@ describe("Authentication Client", async () => {
       const headers = new Headers()
       headers.append("cookie", `__session=${sessionCookie}`)
       const request = new NextRequest(
-        new URL("/auth/access-token", appBaseUrl),
+        new URL("/auth/access-token", DEFAULT.appBaseUrl),
         {
           method: "GET",
           headers,
@@ -2388,11 +2287,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return a 401 if the user does not have a session", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2404,18 +2298,18 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
       const request = new NextRequest(
-        new URL("/auth/access-token", appBaseUrl),
+        new URL("/auth/access-token", DEFAULT.appBaseUrl),
         {
           method: "GET",
         }
@@ -2433,11 +2327,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if obtaining a token set failed", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2449,12 +2338,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
@@ -2468,12 +2357,12 @@ describe("Authentication Client", async () => {
           picture: "https://example.com/john.jpg",
         },
         tokenSet: {
-          accessToken: "at_123",
-          // refreshToken: "rt_123", // missing refresh token
+          accessToken: DEFAULT.accessToken,
+          // missing refresh token
           expiresAt,
         },
         internal: {
-          sid: "auth0-sid",
+          sid: DEFAULT.sid,
           createdAt: Math.floor(Date.now() / 1000),
         },
       }
@@ -2481,7 +2370,7 @@ describe("Authentication Client", async () => {
       const headers = new Headers()
       headers.append("cookie", `__session=${sessionCookie}`)
       const request = new NextRequest(
-        new URL("/auth/access-token", appBaseUrl),
+        new URL("/auth/access-token", DEFAULT.appBaseUrl),
         {
           method: "GET",
           headers,
@@ -2503,11 +2392,6 @@ describe("Authentication Client", async () => {
 
   describe("getTokenSet", async () => {
     it("should return the access token if it has not expired", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2519,20 +2403,20 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
       const expiresAt = Math.floor(Date.now() / 1000) + 10 * 24 * 60 * 60 // expires in 10 days
       const tokenSet = {
-        accessToken: "at_123",
-        refreshToken: "rt_123",
+        accessToken: DEFAULT.accessToken,
+        refreshToken: DEFAULT.refreshToken,
         expiresAt,
       }
 
@@ -2542,11 +2426,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the token set does not contain a refresh token and the access token has expired", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2558,19 +2437,19 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation(),
       })
 
       const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
       const tokenSet = {
-        accessToken: "at_123",
+        accessToken: DEFAULT.accessToken,
         expiresAt,
       }
 
@@ -2580,11 +2459,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should refresh the access token if it expired", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2596,17 +2470,17 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           tokenEndpointResponse: {
             token_type: "Bearer",
-            access_token: "at_123",
+            access_token: DEFAULT.accessToken,
             expires_in: 86400, // expires in 10 days
           } as oauth.TokenEndpointResponse,
         }),
@@ -2614,26 +2488,21 @@ describe("Authentication Client", async () => {
 
       const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
       const tokenSet = {
-        accessToken: "at_123",
-        refreshToken: "rt_123",
+        accessToken: DEFAULT.accessToken,
+        refreshToken: DEFAULT.refreshToken,
         expiresAt,
       }
 
       const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
       expect(error).toBeNull()
       expect(updatedTokenSet).toEqual({
-        accessToken: "at_123",
-        refreshToken: "rt_123",
+        accessToken: DEFAULT.accessToken,
+        refreshToken: DEFAULT.refreshToken,
         expiresAt: expect.any(Number),
       })
     })
 
     it("should return an error if an error occurred during the refresh token exchange", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2645,12 +2514,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           tokenEndpointResponse: {
@@ -2662,8 +2531,8 @@ describe("Authentication Client", async () => {
 
       const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
       const tokenSet = {
-        accessToken: "at_123",
-        refreshToken: "rt_123",
+        accessToken: DEFAULT.accessToken,
+        refreshToken: DEFAULT.refreshToken,
         expiresAt,
       }
 
@@ -2673,11 +2542,6 @@ describe("Authentication Client", async () => {
     })
 
     it("should return an error if the discovery endpoint could not be fetched", async () => {
-      const domain = "guabu.us.auth0.com"
-      const clientId = "client_123"
-      const clientSecret = "client-secret"
-      const appBaseUrl = "https://example.com"
-
       const secret = await generateSecret(32)
       const transactionStore = new TransactionStore({
         secret,
@@ -2689,12 +2553,12 @@ describe("Authentication Client", async () => {
         transactionStore,
         sessionStore,
 
-        domain,
-        clientId,
-        clientSecret,
+        domain: DEFAULT.domain,
+        clientId: DEFAULT.clientId,
+        clientSecret: DEFAULT.clientSecret,
 
         secret,
-        appBaseUrl,
+        appBaseUrl: DEFAULT.appBaseUrl,
 
         fetch: getMockFetchImplementation({
           discoveryResponse: new Response(null, { status: 500 }),
@@ -2703,8 +2567,8 @@ describe("Authentication Client", async () => {
 
       const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
       const tokenSet = {
-        accessToken: "at_123",
-        refreshToken: "rt_123",
+        accessToken: DEFAULT.accessToken,
+        refreshToken: DEFAULT.refreshToken,
         expiresAt,
       }
 
@@ -2715,11 +2579,6 @@ describe("Authentication Client", async () => {
 
     describe("rotating refresh token", async () => {
       it("should refresh the access token if it expired along with the updated refresh token", async () => {
-        const domain = "guabu.us.auth0.com"
-        const clientId = "client_123"
-        const clientSecret = "client-secret"
-        const appBaseUrl = "https://example.com"
-
         const secret = await generateSecret(32)
         const transactionStore = new TransactionStore({
           secret,
@@ -2731,17 +2590,17 @@ describe("Authentication Client", async () => {
           transactionStore,
           sessionStore,
 
-          domain,
-          clientId,
-          clientSecret,
+          domain: DEFAULT.domain,
+          clientId: DEFAULT.clientId,
+          clientSecret: DEFAULT.clientSecret,
 
           secret,
-          appBaseUrl,
+          appBaseUrl: DEFAULT.appBaseUrl,
 
           fetch: getMockFetchImplementation({
             tokenEndpointResponse: {
               token_type: "Bearer",
-              access_token: "at_123",
+              access_token: DEFAULT.accessToken,
               refresh_token: "rt_456",
               expires_in: 86400, // expires in 10 days
             } as oauth.TokenEndpointResponse,
@@ -2750,15 +2609,15 @@ describe("Authentication Client", async () => {
 
         const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
         const tokenSet = {
-          accessToken: "at_123",
-          refreshToken: "rt_123",
+          accessToken: DEFAULT.accessToken,
+          refreshToken: DEFAULT.refreshToken,
           expiresAt,
         }
 
         const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
         expect(error).toBeNull()
         expect(updatedTokenSet).toEqual({
-          accessToken: "at_123",
+          accessToken: DEFAULT.accessToken,
           refreshToken: "rt_456",
           expiresAt: expect.any(Number),
         })
@@ -2789,11 +2648,9 @@ function getMockFetchImplementation({
 
     // JWKS
     const alg = "RS256"
-    const { publicKey, privateKey } = await jose.generateKeyPair(alg)
-    const privateJwk = await jose.exportJWK(privateKey)
-    const publicJwk = await jose.exportJWK(publicKey)
+    const { privateKey } = await jose.generateKeyPair(alg)
     const jwt = await new jose.SignJWT({
-      sid: "auth0-sid",
+      sid: DEFAULT.sid,
       auth_time: Date.now(),
       nonce: nonce ?? "nonce-value",
       "https://example.com/custom_claim": "value",
@@ -2810,8 +2667,8 @@ function getMockFetchImplementation({
       return Response.json(
         tokenEndpointResponse ?? {
           token_type: "Bearer",
-          access_token: "at_123",
-          refresh_token: "rt_123",
+          access_token: DEFAULT.accessToken,
+          refresh_token: DEFAULT.refreshToken,
           id_token: jwt,
           expires_in: 86400, // expires in 10 days
         }
