@@ -189,6 +189,203 @@ describe("Authentication Client", async () => {
       await authClient.handler(request)
       expect(authClient.handleAccessToken).toHaveBeenCalled()
     })
+
+    describe("rolling sessions - no matching auth route", async () => {
+      it("should update the session expiry if a session exists", async () => {
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+
+          rolling: true,
+          absoluteDuration: 3600,
+          inactivityDuration: 1800,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain: "guabu.us.auth0.com",
+          clientId: "123",
+          clientSecret: "123",
+
+          secret,
+          appBaseUrl: "https://example.com",
+
+          fetch: getMockFetchImplementation(),
+        })
+
+        const session: SessionData = {
+          user: { sub: "user_123" },
+          tokenSet: {
+            accessToken: "at_123",
+            refreshToken: "rt_123",
+            expiresAt: 123456,
+          },
+          internal: {
+            sid: "auth0-sid",
+            createdAt: Math.floor(Date.now() / 1000),
+          },
+        }
+        const sessionCookie = await encrypt(session, secret)
+        const headers = new Headers()
+        headers.append("cookie", `__session=${sessionCookie}`)
+        const request = new NextRequest(
+          "https://example.com/dashboard/projects",
+          {
+            method: "GET",
+            headers,
+          }
+        )
+
+        const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
+        const updatedTokenSet = {
+          accessToken: "at_456",
+          refreshToken: "rt_456",
+          expiresAt,
+        }
+        authClient.getTokenSet = vi
+          .fn()
+          .mockResolvedValue([null, updatedTokenSet])
+
+        const response = await authClient.handler(request)
+        expect(authClient.getTokenSet).toHaveBeenCalled()
+
+        // assert session has been updated
+        const updatedSessionCookie = response.cookies.get("__session")
+        expect(updatedSessionCookie).toBeDefined()
+        const updatedSessionCookieValue = await decrypt(
+          updatedSessionCookie!.value,
+          secret
+        )
+        expect(updatedSessionCookieValue).toEqual({
+          user: {
+            sub: "user_123",
+          },
+          tokenSet: {
+            accessToken: "at_456",
+            refreshToken: "rt_456",
+            expiresAt: expect.any(Number),
+          },
+          internal: {
+            sid: "auth0-sid",
+            createdAt: expect.any(Number),
+          },
+        })
+
+        // assert that the session expiry has been extended by the inactivity duration
+        expect(updatedSessionCookie?.maxAge).toEqual(1800)
+      })
+
+      it("should pass the request through if there is no session", async () => {
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+
+          rolling: true,
+          absoluteDuration: 3600,
+          inactivityDuration: 1800,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain: "guabu.us.auth0.com",
+          clientId: "123",
+          clientSecret: "123",
+
+          secret,
+          appBaseUrl: "https://example.com",
+
+          fetch: getMockFetchImplementation(),
+        })
+
+        const request = new NextRequest(
+          "https://example.com/dashboard/projects",
+          {
+            method: "GET",
+          }
+        )
+
+        authClient.getTokenSet = vi.fn()
+
+        const response = await authClient.handler(request)
+        expect(authClient.getTokenSet).not.toHaveBeenCalled()
+
+        // assert session has not been updated
+        const updatedSessionCookie = response.cookies.get("__session")
+        expect(updatedSessionCookie).toBeUndefined()
+      })
+
+      it("should pass the request through if there was an error fetching the updated token set", async () => {
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+
+          rolling: true,
+          absoluteDuration: 3600,
+          inactivityDuration: 1800,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain: "guabu.us.auth0.com",
+          clientId: "123",
+          clientSecret: "123",
+
+          secret,
+          appBaseUrl: "https://example.com",
+
+          fetch: getMockFetchImplementation(),
+        })
+
+        const session: SessionData = {
+          user: { sub: "user_123" },
+          tokenSet: {
+            accessToken: "at_123",
+            refreshToken: "rt_123",
+            expiresAt: 123456,
+          },
+          internal: {
+            sid: "auth0-sid",
+            createdAt: Math.floor(Date.now() / 1000),
+          },
+        }
+        const sessionCookie = await encrypt(session, secret)
+        const headers = new Headers()
+        headers.append("cookie", `__session=${sessionCookie}`)
+        const request = new NextRequest(
+          "https://example.com/dashboard/projects",
+          {
+            method: "GET",
+            headers,
+          }
+        )
+
+        authClient.getTokenSet = vi
+          .fn()
+          .mockResolvedValue([
+            new Error("error fetching updated token set"),
+            null,
+          ])
+
+        const response = await authClient.handler(request)
+        expect(authClient.getTokenSet).toHaveBeenCalled()
+
+        // assert session has not been updated
+        const updatedSessionCookie = response.cookies.get("__session")
+        expect(updatedSessionCookie).toBeUndefined()
+      })
+    })
   })
 
   describe("handleLogin", async () => {
@@ -257,6 +454,46 @@ describe("Authentication Client", async () => {
         state: authorizationUrl.searchParams.get("state"),
         returnTo: "/",
       })
+    })
+
+    it("should return an error if the discovery endpoint could not be fetched", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          discoveryResponse: new Response(null, { status: 500 }),
+        }),
+      })
+
+      const request = new NextRequest(new URL("/auth/login", appBaseUrl), {
+        method: "GET",
+      })
+
+      const response = await authClient.handleLogin(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual(
+        "An error occured while trying to initiate the login request."
+      )
     })
 
     describe("authorization parameters", async () => {
@@ -568,6 +805,72 @@ describe("Authentication Client", async () => {
           "from-config"
         )
       })
+
+      it("should not forward parameters with null or undefined values", async () => {
+        const domain = "guabu.us.auth0.com"
+        const clientId = "client_123"
+        const clientSecret = "client-secret"
+        const appBaseUrl = "https://example.com"
+
+        const secret = await generateSecret(32)
+        const transactionStore = new TransactionStore({
+          secret,
+        })
+        const sessionStore = new StatelessSessionStore({
+          secret,
+        })
+        const authClient = new AuthClient({
+          transactionStore,
+          sessionStore,
+
+          domain,
+          clientId,
+          clientSecret,
+          authorizationParameters: {
+            scope: "openid profile email offline_access custom_scope",
+            audience: null,
+            custom_param: undefined,
+          },
+
+          secret,
+          appBaseUrl,
+
+          fetch: getMockFetchImplementation(),
+        })
+        const loginUrl = new URL("/auth/login", appBaseUrl)
+        const request = new NextRequest(loginUrl, {
+          method: "GET",
+        })
+
+        const response = await authClient.handleLogin(request)
+        expect(response.status).toEqual(307)
+        expect(response.headers.get("Location")).not.toBeNull()
+
+        const authorizationUrl = new URL(response.headers.get("Location")!)
+        expect(authorizationUrl.origin).toEqual(`https://${domain}`)
+
+        // query parameters
+        expect(authorizationUrl.searchParams.get("client_id")).toEqual(clientId)
+        expect(authorizationUrl.searchParams.get("redirect_uri")).toEqual(
+          `${appBaseUrl}/auth/callback`
+        )
+        expect(authorizationUrl.searchParams.get("response_type")).toEqual(
+          "code"
+        )
+        expect(
+          authorizationUrl.searchParams.get("code_challenge")
+        ).not.toBeNull()
+        expect(
+          authorizationUrl.searchParams.get("code_challenge_method")
+        ).toEqual("S256")
+        expect(authorizationUrl.searchParams.get("state")).not.toBeNull()
+        expect(authorizationUrl.searchParams.get("nonce")).not.toBeNull()
+        expect(authorizationUrl.searchParams.get("scope")).toEqual(
+          "openid profile email offline_access custom_scope"
+        )
+        expect(authorizationUrl.searchParams.get("custom_param")).toBeNull()
+        expect(authorizationUrl.searchParams.get("audience")).toBeNull()
+      })
     })
 
     it("should store the maxAge in the transaction state and forward it to the authorization server", async () => {
@@ -821,10 +1124,58 @@ describe("Authentication Client", async () => {
         appBaseUrl,
 
         fetch: getMockFetchImplementation({
-          discoveryResponse: Response.json({
-            ..._authorizationServerMetadata,
-            end_session_endpoint: null,
-          }),
+          discoveryResponse: Response.json(
+            {
+              ..._authorizationServerMetadata,
+              end_session_endpoint: null,
+            },
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            }
+          ),
+        }),
+      })
+
+      const request = new NextRequest(new URL("/auth/logout", appBaseUrl), {
+        method: "GET",
+      })
+
+      const response = await authClient.handleLogout(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual(
+        "An error occured while trying to initiate the logout request."
+      )
+    })
+
+    it("should return an error if the discovery endpoint could not be fetched", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          discoveryResponse: new Response(null, { status: 500 }),
         }),
       })
 
@@ -1247,6 +1598,67 @@ describe("Authentication Client", async () => {
       expect(response.status).toEqual(500)
       expect(await response.text()).toEqual(
         "An error occured while trying to exchange the authorization code."
+      )
+    })
+
+    it("should return an error if the discovery endpoint could not be fetched", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const state = "transaction-state"
+      const code = "auth-code"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          discoveryResponse: new Response(null, { status: 500 }),
+        }),
+      })
+
+      const url = new URL("/auth/callback", appBaseUrl)
+      url.searchParams.set("code", code)
+      url.searchParams.set("state", state)
+
+      const headers = new Headers()
+      const transactionState: TransactionState = {
+        nonce: "nonce-value",
+        maxAge: 3600,
+        codeVerifier: "code-verifier",
+        responseType: "code",
+        state: state,
+        returnTo: "/dashboard",
+      }
+      headers.set(
+        "cookie",
+        `__txn_${state}=${await encrypt(transactionState, secret)}`
+      )
+      const request = new NextRequest(url, {
+        method: "GET",
+        headers,
+      })
+
+      const response = await authClient.handleCallback(request)
+      expect(response.status).toEqual(500)
+      expect(await response.text()).toEqual(
+        "Discovery failed for the OpenID Connect configuration."
       )
     })
 
@@ -2216,6 +2628,91 @@ describe("Authentication Client", async () => {
       })
     })
 
+    it("should return an error if an error occurred during the refresh token exchange", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          tokenEndpointResponse: {
+            error: "some-error-code",
+            error_description: "some-error-description",
+          },
+        }),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
+      const tokenSet = {
+        accessToken: "at_123",
+        refreshToken: "rt_123",
+        expiresAt,
+      }
+
+      const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
+      expect(error?.code).toEqual("refresh_token_grant_error")
+      expect(updatedTokenSet).toBeNull()
+    })
+
+    it("should return an error if the discovery endpoint could not be fetched", async () => {
+      const domain = "guabu.us.auth0.com"
+      const clientId = "client_123"
+      const clientSecret = "client-secret"
+      const appBaseUrl = "https://example.com"
+
+      const secret = await generateSecret(32)
+      const transactionStore = new TransactionStore({
+        secret,
+      })
+      const sessionStore = new StatelessSessionStore({
+        secret,
+      })
+      const authClient = new AuthClient({
+        transactionStore,
+        sessionStore,
+
+        domain,
+        clientId,
+        clientSecret,
+
+        secret,
+        appBaseUrl,
+
+        fetch: getMockFetchImplementation({
+          discoveryResponse: new Response(null, { status: 500 }),
+        }),
+      })
+
+      const expiresAt = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60 // expired 10 days ago
+      const tokenSet = {
+        accessToken: "at_123",
+        refreshToken: "rt_123",
+        expiresAt,
+      }
+
+      const [error, updatedTokenSet] = await authClient.getTokenSet(tokenSet)
+      expect(error?.code).toEqual("discovery_error")
+      expect(updatedTokenSet).toBeNull()
+    })
+
     describe("rotating refresh token", async () => {
       it("should refresh the access token if it expired along with the updated refresh token", async () => {
         const domain = "guabu.us.auth0.com"
@@ -2323,7 +2820,7 @@ function getMockFetchImplementation({
 
     // discovery URL
     if (url.pathname === "/.well-known/openid-configuration") {
-      return Response.json(discoveryResponse ?? _authorizationServerMetadata)
+      return discoveryResponse ?? Response.json(_authorizationServerMetadata)
     }
 
     return new Response(null, { status: 404 })
