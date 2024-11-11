@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@auth0/nextjs-auth0':
-        specifier: 4.0.0-beta.2
-        version: 4.0.0-beta.2(next@15.0.2(@babel/core@7.26.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       '@edge-runtime/cookies':
         specifier: ^5.0.1
         version: 5.0.1
@@ -66,12 +63,6 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
-
-  '@auth0/nextjs-auth0@4.0.0-beta.2':
-    resolution: {integrity: sha512-jcFetdp4YZ2z4mDdBxxAI/kc0SbVzlLxvz09XOpaq7a8eW54PHPv6qyhPOBC6jYKGfsAC9pNkWC1PAqogqbcSg==}
-    peerDependencies:
-      next: '>=14'
-      react: '>=18'
 
   '@babel/code-frame@7.26.2':
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
@@ -1158,16 +1149,6 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.5
       '@jridgewell/trace-mapping': 0.3.25
-
-  '@auth0/nextjs-auth0@4.0.0-beta.2(next@15.0.2(@babel/core@7.26.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@edge-runtime/cookies': 5.0.1
-      '@panva/hkdf': 1.2.1
-      jose: 5.9.6
-      next: 15.0.2(@babel/core@7.26.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      oauth4webapi: 3.1.2
-      react: 18.3.1
-      swr: 2.2.5(react@18.3.1)
 
   '@babel/code-frame@7.26.2':
     dependencies:
