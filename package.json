@@ -50,6 +50,7 @@
     "./server": "./dist/server/index.js"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "4.0.0-beta.2",
     "@edge-runtime/cookies": "^5.0.1",
     "@panva/hkdf": "^1.2.1",
     "jose": "^5.9.6",
