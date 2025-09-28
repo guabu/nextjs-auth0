@@ -182,3 +182,92 @@ export class AccessTokenForConnectionError extends SdkError {
     this.cause = cause;
   }
 }
+
+/**
+ * Error class representing a connect account request error.
+ */
+export class ConnectAccountRequestError extends SdkError {
+  public code: string;
+  public title: string;
+  public detail: string;
+  public status: number;
+  public validationErrors?: Array<{
+    detail: string;
+    field?: string;
+    pointer?: string;
+    source?: string;
+  }>;
+
+  constructor({
+    code,
+    title,
+    detail,
+    status,
+    validationErrors
+  }: {
+    code: string;
+    title: string;
+    detail: string;
+    status: number;
+    validationErrors?: Array<{
+      detail: string;
+      field?: string;
+      pointer?: string;
+      source?: string;
+    }>;
+  }) {
+    super(`${title}: ${detail}`);
+    this.name = "ConnectAccountRequestError";
+    this.code = code;
+    this.title = title;
+    this.detail = detail;
+    this.status = status;
+    this.validationErrors = validationErrors;
+  }
+}
+
+/**
+ * Enum representing error codes related to the connect account flow.
+ */
+export enum ConnectAccountErrorCodes {
+  /**
+   * The session is missing.
+   */
+  MISSING_SESSION = "missing_session",
+
+  /**
+   * Failed to initiate the connect account flow.
+   */
+  FAILED_TO_INITIATE = "failed_to_initiate",
+
+  /**
+   * Failed to complete the connect account flow.
+   */
+  FAILED_TO_COMPLETE = "failed_to_complete"
+}
+
+/**
+ * Error class representing a connect account error.
+ */
+export class ConnectAccountError extends SdkError {
+  /**
+   * The error code associated with the connect account error.
+   */
+  public code: string;
+  public cause?: ConnectAccountRequestError;
+
+  constructor({
+    code,
+    message,
+    cause
+  }: {
+    code: string;
+    message: string;
+    cause?: ConnectAccountRequestError;
+  }) {
+    super(message);
+    this.name = "ConnectAccountError";
+    this.code = code;
+    this.cause = cause;
+  }
+}

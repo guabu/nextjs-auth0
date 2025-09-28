@@ -1,5 +1,6 @@
 import type * as jose from "jose";
 
+import { RESPONSE_TYPES } from "../types/index.js";
 import * as cookies from "./cookies.js";
 
 const TRANSACTION_COOKIE_PREFIX = "__txn_";
@@ -7,10 +8,11 @@ const TRANSACTION_COOKIE_PREFIX = "__txn_";
 export interface TransactionState extends jose.JWTPayload {
   nonce: string;
   codeVerifier: string;
-  responseType: string;
+  responseType: RESPONSE_TYPES;
   state: string; // the state parameter passed to the authorization server
   returnTo: string; // the URL to redirect to after login
   maxAge?: number; // the maximum age of the authentication session
+  authSession?: string; // the auth session ID for connect accounts
 }
 
 export interface TransactionCookieOptions {

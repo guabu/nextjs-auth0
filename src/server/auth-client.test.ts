@@ -8,6 +8,7 @@ import { getDefaultRoutes } from "../test/defaults.js";
 import { generateSecret } from "../test/utils.js";
 import {
   AccessTokenSet,
+  RESPONSE_TYPES,
   SessionData,
   SUBJECT_TOKEN_TYPES
 } from "../types/index.js";
@@ -1115,7 +1116,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         expect.objectContaining({
           nonce: authorizationUrl.searchParams.get("nonce"),
           codeVerifier: expect.any(String),
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: authorizationUrl.searchParams.get("state"),
           returnTo: "/"
         })
@@ -1333,7 +1334,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           expect.objectContaining({
             nonce: authorizationUrl.searchParams.get("nonce"),
             codeVerifier: expect.any(String),
-            responseType: "code",
+            responseType: RESPONSE_TYPES.CODE,
             state: authorizationUrl.searchParams.get("state"),
             returnTo: "/"
           })
@@ -1685,7 +1686,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: authorizationUrl.searchParams.get("nonce"),
           maxAge: 3600,
           codeVerifier: expect.any(String),
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: authorizationUrl.searchParams.get("state"),
           returnTo: "/"
         })
@@ -1740,7 +1741,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         expect.objectContaining({
           nonce: authorizationUrl.searchParams.get("nonce"),
           codeVerifier: expect.any(String),
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: authorizationUrl.searchParams.get("state"),
           returnTo: "/dashboard"
         })
@@ -1795,7 +1796,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         expect.objectContaining({
           nonce: authorizationUrl.searchParams.get("nonce"),
           codeVerifier: expect.any(String),
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: authorizationUrl.searchParams.get("state"),
           returnTo: "/"
         })
@@ -1939,7 +1940,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           expect.objectContaining({
             nonce: expect.any(String),
             codeVerifier: expect.any(String),
-            responseType: "code",
+            responseType: RESPONSE_TYPES.CODE,
             state,
             returnTo: "/"
           })
@@ -2103,7 +2104,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
             expect.objectContaining({
               nonce: expect.any(String),
               codeVerifier: expect.any(String),
-              responseType: "code",
+              responseType: RESPONSE_TYPES.CODE,
               state,
               returnTo: "/"
             })
@@ -2187,7 +2188,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
             expect.objectContaining({
               nonce: expect.any(String),
               codeVerifier: expect.any(String),
-              responseType: "code",
+              responseType: RESPONSE_TYPES.CODE,
               state,
               returnTo: "/"
             })
@@ -3194,7 +3195,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         nonce: "nonce-value",
         maxAge: 3600,
         codeVerifier: "code-verifier",
-        responseType: "code",
+        responseType: RESPONSE_TYPES.CODE,
         state: state,
         returnTo: "/dashboard"
       };
@@ -3296,7 +3297,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -3382,7 +3383,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         nonce: "nonce-value",
         maxAge: 3600,
         codeVerifier: "code-verifier",
-        responseType: "code",
+        responseType: RESPONSE_TYPES.CODE,
         state: state,
         returnTo: "/dashboard"
       };
@@ -3510,7 +3511,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         nonce: "nonce-value",
         maxAge: 3600,
         codeVerifier: "code-verifier",
-        responseType: "code",
+        responseType: RESPONSE_TYPES.CODE,
         state: state,
         returnTo: "/dashboard"
       };
@@ -3566,7 +3567,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         nonce: "nonce-value",
         maxAge: 3600,
         codeVerifier: "code-verifier",
-        responseType: "code",
+        responseType: RESPONSE_TYPES.CODE,
         state: state,
         returnTo: "/dashboard"
       };
@@ -3629,7 +3630,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         nonce: "nonce-value",
         maxAge: 3600,
         codeVerifier: "code-verifier",
-        responseType: "code",
+        responseType: RESPONSE_TYPES.CODE,
         state: state,
         returnTo: "/dashboard"
       };
@@ -3689,7 +3690,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         nonce: "nonce-value",
         maxAge: 3600,
         codeVerifier: "code-verifier",
-        responseType: "code",
+        responseType: RESPONSE_TYPES.CODE,
         state: state,
         returnTo: "/dashboard"
       };
@@ -3756,7 +3757,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -3918,7 +3919,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -3997,7 +3998,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -4082,7 +4083,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -4166,7 +4167,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -4254,7 +4255,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -4338,7 +4339,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -4476,7 +4477,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
           nonce: "nonce-value",
           maxAge: 3600,
           codeVerifier: "code-verifier",
-          responseType: "code",
+          responseType: RESPONSE_TYPES.CODE,
           state: state,
           returnTo: "/dashboard"
         };
@@ -6165,7 +6166,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
             expect.objectContaining({
               nonce: expect.any(String),
               codeVerifier: expect.any(String),
-              responseType: "code",
+              responseType: RESPONSE_TYPES.CODE,
               state: expect.any(String),
               returnTo: "/custom-path"
             })
