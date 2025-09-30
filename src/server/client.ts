@@ -801,42 +801,15 @@ export class Auth0Client {
 
   /**
    * Initiates the Connect Account flow to connect a third-party account to the user's profile.
-   *
-   * This method can be used in Server Components, Server Actions, and Route Handlers in the **App Router**.
-   *
-   * NOTE: Server Components cannot set cookies. Calling `connectAccount()` in a Server Component will cause the access token to be refreshed, if it is expired, and the updated token set will not to be persisted.
-   * It is recommended to call `connectAccount(req, res, options)` in the middleware if you need to retrieve the access token in a Server Component to ensure the updated token set is persisted.
-   */
-  async connectAccount(options: ConnectAccountOptions): Promise<NextResponse>;
-
-  /**
-   * Initiates the Connect Account flow to connect a third-party account to the user's profile.
-   *
-   * This method can be used in middleware and `getServerSideProps`, API routes in the **Pages Router**.
-   */
-  async connectAccount(
-    options: ConnectAccountOptions,
-    req: PagesRouterRequest | NextRequest | undefined,
-    res: PagesRouterResponse | NextResponse | undefined
-  ): Promise<NextResponse>;
-
-  /**
-   * Initiates the Connect Account flow to connect a third-party account to the user's profile.
    * If the user does not have an active session, a `ConnectAccountError` is thrown.
    *
    * This method first attempts to obtain an access token with the `create:me:connected_accounts` scope
-   * to create a connected account for the user.
+   * for the My Account API to create a connected account for the user.
    *
    * The user will then be redirected to authorize the connection with the third-party provider.
    */
-  async connectAccount(
-    options: ConnectAccountOptions,
-    req?: PagesRouterRequest | NextRequest,
-    res?: PagesRouterResponse | NextResponse
-  ): Promise<NextResponse> {
-    const session: SessionData | null = req
-      ? await this.getSession(req)
-      : await this.getSession();
+  async connectAccount(options: ConnectAccountOptions): Promise<NextResponse> {
+    const session = await this.getSession();
 
     if (!session) {
       throw new ConnectAccountError({
@@ -850,10 +823,7 @@ export class Auth0Client {
       scope: "create:me:connected_accounts"
     };
 
-    const accessToken =
-      req && res
-        ? await this.getAccessToken(req, res, getMyAccountTokenOpts)
-        : await this.getAccessToken(getMyAccountTokenOpts);
+    const accessToken = await this.getAccessToken(getMyAccountTokenOpts);
 
     const [error, connectAccountResponse] =
       await this.authClient.connectAccount({
