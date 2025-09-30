@@ -187,7 +187,9 @@ export class AccessTokenForConnectionError extends SdkError {
  * Error class representing a connect account request error.
  */
 export class ConnectAccountRequestError extends SdkError {
-  public code: string;
+  public name: string = "ConnectAccountRequestError";
+  public code: string = "connect_account_request_error";
+  public type: string;
   public title: string;
   public detail: string;
   public status: number;
@@ -199,13 +201,13 @@ export class ConnectAccountRequestError extends SdkError {
   }>;
 
   constructor({
-    code,
+    type,
     title,
     detail,
     status,
     validationErrors
   }: {
-    code: string;
+    type: string;
     title: string;
     detail: string;
     status: number;
@@ -217,8 +219,7 @@ export class ConnectAccountRequestError extends SdkError {
     }>;
   }) {
     super(`${title}: ${detail}`);
-    this.name = "ConnectAccountRequestError";
-    this.code = code;
+    this.type = type;
     this.title = title;
     this.detail = detail;
     this.status = status;

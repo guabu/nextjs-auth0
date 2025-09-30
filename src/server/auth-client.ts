@@ -605,10 +605,15 @@ export class AuthClient {
       const session = await this.sessionStore.get(req.cookies);
 
       if (!session) {
-        throw new ConnectAccountError({
-          code: ConnectAccountErrorCodes.MISSING_SESSION,
-          message: "The user does not have an active session."
-        });
+        return this.handleCallbackError(
+          new ConnectAccountError({
+            code: ConnectAccountErrorCodes.MISSING_SESSION,
+            message: "The user does not have an active session."
+          }),
+          onCallbackCtx,
+          req,
+          state
+        );
       }
 
       // get an access token for connected accounts
@@ -1773,7 +1778,6 @@ export class AuthClient {
     const codeVerifier = oauth.generateRandomCodeVerifier();
     const codeChallenge = await oauth.calculatePKCECodeChallenge(codeVerifier);
     const state = oauth.generateRandomState();
-    const nonce = oauth.generateRandomNonce();
 
     const [error, connectAccountResponse] =
       await this.createConnectAccountTicket({
@@ -1781,7 +1785,6 @@ export class AuthClient {
         connection: options.connection,
         redirectUri: redirectUri.toString(),
         state,
-        nonce,
         codeChallenge,
         codeChallengeMethod,
         authorizationParams: options.authorizationParams
@@ -1792,7 +1795,6 @@ export class AuthClient {
     }
 
     const transactionState: TransactionState = {
-      nonce,
       codeVerifier,
       responseType: RESPONSE_TYPES.CONNECT_CODE,
       state,
@@ -1830,7 +1832,6 @@ export class AuthClient {
           connection: options.connection,
           redirect_uri: options.redirectUri,
           state: options.state,
-          nonce: options.nonce,
           code_challenge: options.codeChallenge,
           code_challenge_method: options.codeChallengeMethod,
           authorization_params: options.authorizationParams
@@ -1846,7 +1847,7 @@ export class AuthClient {
               code: ConnectAccountErrorCodes.FAILED_TO_INITIATE,
               message: `The request to initiate the connect account flow failed with status ${res.status}.`,
               cause: new ConnectAccountRequestError({
-                code: errorBody.code,
+                type: errorBody.type,
                 title: errorBody.title,
                 detail: errorBody.detail,
                 status: res.status,
@@ -1924,7 +1925,7 @@ export class AuthClient {
               code: ConnectAccountErrorCodes.FAILED_TO_COMPLETE,
               message: `The request to complete the connect account flow failed with status ${res.status}.`,
               cause: new ConnectAccountRequestError({
-                code: errorBody.code,
+                type: errorBody.type,
                 title: errorBody.title,
                 detail: errorBody.detail,
                 status: res.status,
