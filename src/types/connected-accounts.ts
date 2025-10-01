@@ -48,10 +48,6 @@ export interface ConnectAccountRequest {
    */
   state?: string;
   /**
-   * A string value used to associate a client session with the request.
-   */
-  nonce?: string;
-  /**
    * The PKCE code challenge derived from the code verifier.
    */
   codeChallenge?: string;

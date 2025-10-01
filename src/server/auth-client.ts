@@ -17,7 +17,7 @@ import {
   BackchannelLogoutError,
   ConnectAccountError,
   ConnectAccountErrorCodes,
-  ConnectAccountRequestError,
+  MyAccountApiError,
   DiscoveryError,
   InvalidStateError,
   MissingStateError,
@@ -1846,7 +1846,7 @@ export class AuthClient {
             new ConnectAccountError({
               code: ConnectAccountErrorCodes.FAILED_TO_INITIATE,
               message: `The request to initiate the connect account flow failed with status ${res.status}.`,
-              cause: new ConnectAccountRequestError({
+              cause: new MyAccountApiError({
                 type: errorBody.type,
                 title: errorBody.title,
                 detail: errorBody.detail,
@@ -1924,7 +1924,7 @@ export class AuthClient {
             new ConnectAccountError({
               code: ConnectAccountErrorCodes.FAILED_TO_COMPLETE,
               message: `The request to complete the connect account flow failed with status ${res.status}.`,
-              cause: new ConnectAccountRequestError({
+              cause: new MyAccountApiError({
                 type: errorBody.type,
                 title: errorBody.title,
                 detail: errorBody.detail,

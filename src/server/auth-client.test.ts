@@ -9,7 +9,7 @@ import {
   BackchannelAuthenticationError,
   ConnectAccountError,
   ConnectAccountErrorCodes,
-  ConnectAccountRequestError
+  MyAccountApiError
 } from "../errors/index.js";
 import { getDefaultRoutes } from "../test/defaults.js";
 import { generateSecret } from "../test/utils.js";
@@ -6381,7 +6381,7 @@ ca/T0LLtgmbMmxSv/MmzIg==
         new ConnectAccountError({
           code: ConnectAccountErrorCodes.FAILED_TO_INITIATE,
           message: "some message",
-          cause: new ConnectAccountRequestError({
+          cause: new MyAccountApiError({
             title: "Validation Error",
             type: "https://auth0.com/api-errors/A0E-400-0003",
             detail: "Invalid request payload input",
